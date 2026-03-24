@@ -17,8 +17,6 @@ import {
   Alert,
   LinearProgress,
 } from "@mui/material";
-import DarkMode from "@mui/icons-material/DarkMode";
-import LightMode from "@mui/icons-material/LightMode";
 import NotificationsActive from "@mui/icons-material/NotificationsActive";
 import Home from "@mui/icons-material/Home";
 import Lock from "@mui/icons-material/Lock";
@@ -26,7 +24,6 @@ import SettingsSuggest from "@mui/icons-material/SettingsSuggest";
 import Payment from "@mui/icons-material/Payment";
 import Business from "@mui/icons-material/Business";
 import Backup from "@mui/icons-material/Backup";
-import { useThemePreference } from "@/hooks/useThemePreference";
 import {
   getRatePerLiter,
   updateRatePerLiter,
@@ -48,7 +45,6 @@ type DefaultStartPage = "dashboard" | "consumption" | "payments";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useThemePreference();
   const [billReminders, setBillReminders] = useState(true);
   const [defaultStart, setDefaultStart] = useState<DefaultStartPage>("dashboard");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -194,23 +190,6 @@ const SettingsPage = () => {
       <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
         Settings
       </Typography>
-
-      <Card variant="outlined" sx={{ mb: 2 }}>
-        <CardHeader title="Appearance" subheader="Customize how the app looks" />
-        <CardContent sx={{ pt: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <LightMode sx={{ color: "text.secondary" }} />
-            <FormControlLabel
-              control={<Switch checked={theme === "dark"} onChange={toggleTheme} color="primary" />}
-              label={theme === "dark" ? "Dark mode" : "Light mode"}
-            />
-            <DarkMode sx={{ color: "text.secondary" }} />
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-            Theme preference is saved and will apply on your next visit.
-          </Typography>
-        </CardContent>
-      </Card>
 
       <Card variant="outlined" sx={{ mb: 2 }}>
         <CardHeader

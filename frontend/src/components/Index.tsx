@@ -8,7 +8,6 @@ import {
   Typography,
   Button,
   Container,
-  useTheme,
 } from "@mui/material";
 import Login from "@mui/icons-material/Login";
 import PersonAdd from "@mui/icons-material/PersonAdd";
@@ -78,8 +77,6 @@ const stats = [
 
 const Index = () => {
   const navigate = useNavigate();
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
 
   return (
     <Box sx={{ position: "relative", minHeight: "100vh", bgcolor: "background.default", overflow: "hidden" }}>
@@ -94,7 +91,7 @@ const Index = () => {
             height: 256,
             borderRadius: "50%",
             filter: "blur(40px)",
-            opacity: isDark ? 0.15 : 0.3,
+            opacity: 0.3,
           },
         }}
       >

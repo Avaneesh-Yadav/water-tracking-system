@@ -121,10 +121,8 @@ const Layout = ({ children }: LayoutProps) => {
               display: "flex",
               justifyContent: "center",
               position: "relative",
-              backgroundImage: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "linear-gradient(rgba(0,20,40,0.92), rgba(0,20,40,0.88)), url(https://images.unsplash.com/photo-1505142468610-359e7d316be0?auto=format&fit=crop&w=1920&q=75)"
-                  : "linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.82)), url(https://images.unsplash.com/photo-1505142468610-359e7d316be0?auto=format&fit=crop&w=1920&q=75)",
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.82)), url(https://images.unsplash.com/photo-1505142468610-359e7d316be0?auto=format&fit=crop&w=1920&q=75)",
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundAttachment: "fixed",

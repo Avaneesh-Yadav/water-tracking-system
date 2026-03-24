@@ -1,4 +1,4 @@
-import { createTheme, PaletteMode } from "@mui/material/styles";
+import { createTheme } from "@mui/material/styles";
 
 // Original water blue theme (as when collapse was added)
 const waterBlue = "#1565c0";
@@ -6,14 +6,13 @@ const waterBlueLight = "#1976d2";
 const actionGray = "#616161";
 const backgroundWhite = "#ffffff";
 
-export function getTheme(mode: PaletteMode) {
-  const isDark = mode === "dark";
+export function getTheme(mode) {
   return createTheme({
     palette: {
-      mode,
+      mode: mode,
       background: {
-        default: isDark ? "#121212" : backgroundWhite,
-        paper: isDark ? "#1e1e1e" : backgroundWhite,
+        default: backgroundWhite,
+        paper: backgroundWhite,
       },
       primary: {
         main: waterBlue,
@@ -50,17 +49,17 @@ export function getTheme(mode: PaletteMode) {
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: isDark ? "#1e1e1e" : backgroundWhite,
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(21, 101, 192, 0.25)"}`,
-            boxShadow: isDark ? "none" : "0 2px 8px rgba(21, 101, 192, 0.08)",
+            backgroundColor: backgroundWhite,
+            border: "1px solid rgba(21, 101, 192, 0.25)",
+            boxShadow: "0 2px 8px rgba(21, 101, 192, 0.08)",
           },
         },
       },
       MuiPaper: {
         styleOverrides: {
           root: {
-            backgroundColor: isDark ? "#1e1e1e" : backgroundWhite,
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(21, 101, 192, 0.2)"}`,
+            backgroundColor: backgroundWhite,
+            border: "1px solid rgba(21, 101, 192, 0.2)",
           },
         },
       },
