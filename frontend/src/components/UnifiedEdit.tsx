@@ -22,7 +22,7 @@ import Key from "@mui/icons-material/Key";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Save from "@mui/icons-material/Save";
-import { getUserByUUID, updateProfile } from "@/services/apiService";
+import { getUserByUUID, updateProfile, updateUserByUuid } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
 
 /**
@@ -188,42 +188,65 @@ function ProfileEditForm({ uuid, onSuccess, onCancel }: { uuid: string; onSucces
   );
 }
 
-// --- Admin user edit ---
+// --- Admin user edit (PUT /users/:uuid: fullName, mobileNumber, role, address, status) ---
 function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess: () => void; onCancel: () => void }) {
-  const navigate = useNavigate();
+  const [readOnly, setReadOnly] = useState({ connectionId: "", dueAmount: 0, paymentStatus: "" });
   const [formData, setFormData] = useState({
-    name: "",
-    mobile: "",
+    fullName: "",
+    mobileNumber: "",
+    address: "",
+    role: "USER",
     status: "ACTIVE",
-    connectionId: "",
-    paymentStatus: "PENDING",
-    lineNo: "",
-    dueAmount: "",
-    supplyTime: "",
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getUserByUUID(uuid)
       .then((data: any) => {
+        const role = (data.role || "USER").toString().toUpperCase();
         setFormData({
-          name: data.full_name || data.name || "",
-          mobile: data.mobile_number || data.mobile || "",
+          fullName: data.full_name || data.name || "",
+          mobileNumber: data.mobile_number || data.mobile || "",
+          address: data.address || "",
+          role: role === "ADMIN" ? "ADMIN" : "USER",
           status: data.status || "ACTIVE",
+        });
+        setReadOnly({
           connectionId: data.connection_id || "",
-          paymentStatus: data.payment_status || "PENDING",
-          lineNo: data.line_no || "",
-          dueAmount: String(data.dueAmount ?? data.due_amount ?? ""),
-          supplyTime: data.supply_time || "",
+          dueAmount: Number(data.dueAmount ?? data.due_amount ?? 0) || 0,
+          paymentStatus: data.payment_status || "",
         });
       })
       .catch(() => toast({ title: "Error", description: "Failed to load user", variant: "destructive" }))
       .finally(() => setLoading(false));
   }, [uuid]);
 
-  const handleChange = (field: string, value: string) => setFormData((prev) => ({ ...prev, [field]: value }));
-  const handleSubmit = () => {
-    onSuccess();
+  const handleChange = (field: keyof typeof formData, value: string) =>
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateUserByUuid(uuid, {
+        fullName: formData.fullName.trim(),
+        mobileNumber: formData.mobileNumber.trim(),
+        role: formData.role,
+        address: formData.address.trim(),
+        status: formData.status,
+      });
+      toast({ title: "Success", description: "User updated successfully" });
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.response?.data?.message || error?.message || "Failed to update user",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -236,12 +259,47 @@ function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess:
 
   return (
     <Box sx={{ maxWidth: 896, mx: "auto", width: "100%" }}>
+      <form onSubmit={handleSubmit}>
+        <Card variant="outlined" sx={{ mb: 2 }}>
+          <CardHeader title="Account (read-only)" subheader="Connection ID and billing summary from records — not editable here" />
+          <CardContent>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Connection ID</Typography>
+                <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1, mt: 0.5 }}>
+                  <Typography variant="body2" fontFamily="monospace" fontWeight={600} color="primary.main">
+                    {readOnly.connectionId || "—"}
+                  </Typography>
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Outstanding (derived)</Typography>
+                <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1, mt: 0.5 }}>
+                  <Typography variant="body2" fontWeight={600}>₹{readOnly.dueAmount.toFixed(2)}</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                <Typography variant="caption" color="text.secondary">Payment status (derived)</Typography>
+                <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1, mt: 0.5 }}>
+                  <Typography variant="body2">{readOnly.paymentStatus || "—"}</Typography>
+                </Box>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
         <Card variant="outlined">
-          <CardHeader sx={{ bgcolor: "primary.main", color: "white", py: 2 }} title="Edit User Details" />
+          <CardHeader sx={{ bgcolor: "primary.main", color: "white", py: 2 }} title="Edit user" subheader="Name, mobile, role, address, and account status" />
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3 }}>
-              <TextField label="Name" value={formData.name} onChange={(e) => handleChange("name", e.target.value)} fullWidth />
-              <TextField label="Mobile Number" value={formData.mobile} aria-readonly={true} fullWidth sx={{ "& .MuiInputBase-input": { bgcolor: "grey.100" } }} />
+              <TextField label="Full name" value={formData.fullName} onChange={(e) => handleChange("fullName", e.target.value)} fullWidth required />
+              <TextField label="Mobile number" value={formData.mobileNumber} onChange={(e) => handleChange("mobileNumber", e.target.value)} fullWidth required />
+              <FormControl fullWidth>
+                <InputLabel>Role</InputLabel>
+                <Select value={formData.role} label="Role" onChange={(e) => handleChange("role", e.target.value)}>
+                  <MenuItem value="USER">USER</MenuItem>
+                  <MenuItem value="ADMIN">ADMIN</MenuItem>
+                </Select>
+              </FormControl>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select value={formData.status} label="Status" onChange={(e) => handleChange("status", e.target.value)}>
@@ -250,25 +308,25 @@ function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess:
                   <MenuItem value="REVOKE">REVOKE</MenuItem>
                 </Select>
               </FormControl>
-              <TextField label="Connection ID" value={formData.connectionId} onChange={(e) => handleChange("connectionId", e.target.value)} fullWidth />
-              <FormControl fullWidth>
-                <InputLabel>Payment Status</InputLabel>
-                <Select value={formData.paymentStatus} label="Payment Status" onChange={(e) => handleChange("paymentStatus", e.target.value)}>
-                  <MenuItem value="PENDING">PENDING</MenuItem>
-                  <MenuItem value="COMPLETED">COMPLETED</MenuItem>
-                </Select>
-              </FormControl>
-              <TextField label="Line No" value={formData.lineNo} onChange={(e) => handleChange("lineNo", e.target.value)} fullWidth />
-              <TextField label="Due Amount" type="number" value={formData.dueAmount} onChange={(e) => handleChange("dueAmount", e.target.value)} fullWidth
-      InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }} />
-              <TextField label="Supply Time (minutes)" type="number" value={formData.supplyTime} onChange={(e) => handleChange("supplyTime", e.target.value)} fullWidth />
+              <TextField
+                label="Address"
+                value={formData.address}
+                onChange={(e) => handleChange("address", e.target.value)}
+                fullWidth
+                multiline
+                minRows={2}
+                sx={{ gridColumn: { sm: "1 / -1" } }}
+              />
             </Box>
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 3 }}>
-              <Button variant="outlined" onClick={onCancel}>Cancel</Button>
-              <Button variant="contained" onClick={handleSubmit}>Save</Button>
+              <Button type="button" variant="outlined" onClick={onCancel}>Cancel</Button>
+              <Button type="submit" variant="contained" disabled={saving} startIcon={saving ? <CircularProgress size={20} /> : <Save />}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
             </Box>
           </CardContent>
         </Card>
+      </form>
     </Box>
   );
 }

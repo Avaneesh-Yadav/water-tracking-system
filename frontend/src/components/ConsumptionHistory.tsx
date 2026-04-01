@@ -12,14 +12,18 @@ import {
   Typography,
   Chip,
 } from "@mui/material";
+import MeterPhotoThumb from "@/components/MeterPhotoThumb";
 
 type Consumption = {
   id?: string;
   month: string;
   reading: number;
+  prevReading?: number;
+  currReading?: number;
   consumption: number;
   amount: number;
   status: string;
+  meter_photo_path?: string | null;
 };
 
 const ConsumptionHistory = ({ data }: { data: Consumption[] }) => {
@@ -35,21 +39,31 @@ const ConsumptionHistory = ({ data }: { data: Consumption[] }) => {
             <TableHead>
               <TableRow>
                 <TableCell>Month</TableCell>
-                <TableCell>Meter Reading</TableCell>
+                <TableCell>Prev → Curr</TableCell>
+                <TableCell>Display reading</TableCell>
                 <TableCell>Consumption (L)</TableCell>
                 <TableCell>Amount (₹)</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell align="center">Reading Record</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {data.map((item, index) => (
-                <TableRow key={item.id ?? item.month ?? index}>
+                <TableRow key={item.id ?? `${item.month}-${index}`}>
                   <TableCell>{item.month}</TableCell>
+                  <TableCell>
+                    {item.prevReading != null || item.currReading != null
+                      ? `${item.prevReading ?? "—"} → ${item.currReading ?? "—"}`
+                      : "—"}
+                  </TableCell>
                   <TableCell>{item.reading}</TableCell>
                   <TableCell>{item.consumption}</TableCell>
                   <TableCell>₹{item.amount}</TableCell>
                   <TableCell>
                     <Chip size="small" label={item.status} color={item.status === "Paid" ? "success" : "warning"} />
+                  </TableCell>
+                  <TableCell align="center">
+                    <MeterPhotoThumb path={item.meter_photo_path} size={36} />
                   </TableCell>
                 </TableRow>
               ))}

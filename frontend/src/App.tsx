@@ -19,6 +19,7 @@ import PaymentsPage from "./pages/PaymentsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ConsumersPage from "./pages/ConsumersPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
+import BillPrintPage from "./pages/BillPrintPage";
 import ReportsPage from "./pages/ReportsPage";
 import BulkOperationsPage from "./pages/BulkOperationsPage";
 import HelpPage from "./pages/HelpPage";
@@ -41,10 +42,12 @@ const App = () => (
           {/* Protected: sidebar layout + nested routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="dashboard" element={<HomeOrDashboard />} />
+            <Route path="bill/:consumptionUuid" element={<BillPrintPage />} />
             <Route element={<Layout />}>
               <Route path="search" element={<SearchResultsPage />} />
               <Route path="consumption" element={<ConsumptionPage />} />
               <Route path="consumers" element={<ConsumersPage />} />
+              <Route path="employees" element={<ConsumersPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="bulk" element={<BulkOperationsPage />} />
               <Route path="payments" element={<PaymentsPage />} />

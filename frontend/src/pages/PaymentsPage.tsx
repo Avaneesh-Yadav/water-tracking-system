@@ -36,7 +36,9 @@ import { toast } from "@/hooks/use-toast";
 
 type AdminPaymentSortField = "full_name" | "amount" | "payment_method" | "transaction_id" | "upi_id" | "paid_at" | "created_at";
 
-const ROWS_PER_PAGE_OPTIONS = [5, 10, 25, 50];
+type NotificationSortField = "created_at" | "full_name" | "connection_id" | "amount" | "message";
+
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50];
 
 const formatShortDate = (value?: string) =>
   value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -53,9 +55,9 @@ const PaymentsPage = () => {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [adminPage, setAdminPage] = useState(0);
-  const [adminRowsPerPage, setAdminRowsPerPage] = useState(5);
+  const [adminRowsPerPage, setAdminRowsPerPage] = useState(10);
   const [adminTotal, setAdminTotal] = useState(0);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminSortField, setAdminSortField] = useState<AdminPaymentSortField>("paid_at");
@@ -64,6 +66,10 @@ const PaymentsPage = () => {
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [approvingUuid, setApprovingUuid] = useState<string | null>(null);
   const [paidNotificationUuids, setPaidNotificationUuids] = useState<Record<string, boolean>>({});
+  const [notifPage, setNotifPage] = useState(0);
+  const [notifRowsPerPage, setNotifRowsPerPage] = useState(10);
+  const [notifSortField, setNotifSortField] = useState<NotificationSortField>("created_at");
+  const [notifSortOrder, setNotifSortOrder] = useState<"asc" | "desc">("desc");
 
   const userTotalPaidAmount = useMemo(() => {
     if (!payments || payments.length === 0) return 0;
@@ -231,6 +237,72 @@ const PaymentsPage = () => {
     return 0;
   });
 
+  const sortedNotifications = useMemo(() => {
+    return [...notifications].sort((a, b) => {
+      let aVal: string | number;
+      let bVal: string | number;
+      switch (notifSortField) {
+        case "full_name":
+          aVal = (a.full_name ?? "").toLowerCase();
+          bVal = (b.full_name ?? "").toLowerCase();
+          break;
+        case "connection_id":
+          aVal = (a.connection_id ?? "").toLowerCase();
+          bVal = (b.connection_id ?? "").toLowerCase();
+          break;
+        case "amount":
+          aVal = Number(a.details?.amount) || 0;
+          bVal = Number(b.details?.amount) || 0;
+          break;
+        case "message":
+          aVal = (a.details?.message ?? "").toLowerCase();
+          bVal = (b.details?.message ?? "").toLowerCase();
+          break;
+        case "created_at":
+        default:
+          aVal = new Date(a.created_at || 0).getTime();
+          bVal = new Date(b.created_at || 0).getTime();
+          break;
+      }
+      if (aVal < bVal) return notifSortOrder === "asc" ? -1 : 1;
+      if (aVal > bVal) return notifSortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [notifications, notifSortField, notifSortOrder]);
+
+  const paginatedNotifications = useMemo(() => {
+    const start = notifPage * notifRowsPerPage;
+    return sortedNotifications.slice(start, start + notifRowsPerPage);
+  }, [sortedNotifications, notifPage, notifRowsPerPage]);
+
+  const handleNotifSort = (field: NotificationSortField) => {
+    if (notifSortField === field) {
+      setNotifSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setNotifSortField(field);
+      setNotifSortOrder("desc");
+      setNotifPage(0);
+    }
+  };
+
+  const NotifSortIcon = ({ field }: { field: NotificationSortField }) => {
+    if (notifSortField !== field) return <SwapVert sx={{ ml: 0.5, fontSize: 20, color: "grey.400" }} />;
+    return notifSortOrder === "asc" ? (
+      <ArrowUpward sx={{ ml: 0.5, fontSize: 20, color: "primary.main" }} />
+    ) : (
+      <ArrowDownward sx={{ ml: 0.5, fontSize: 20, color: "primary.main" }} />
+    );
+  };
+
+  const handleNotifPageChange = (_: unknown, newPage: number) => {
+    setNotifPage(newPage);
+  };
+
+  const handleNotifRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNotifRowsPerPage(parseInt(e.target.value, 10));
+    setNotifPage(0);
+  };
+
   if (loading && payments.length === 0) {
     return (
       <Box sx={{ maxWidth: 1280, mx: "auto", width: "100%" }}>
@@ -312,7 +384,7 @@ const PaymentsPage = () => {
         <Card variant="outlined">
           <CardHeader
             title="All payments"
-            subheader="User name links to user page — paginated (5–50 per page)"
+            subheader="User name links to user page — paginated (10–50 per page)"
           />
           <CardContent sx={{ pt: 0 }}>
             <TableContainer component={Paper} variant="outlined">
@@ -411,7 +483,7 @@ const PaymentsPage = () => {
           />
           <CardContent sx={{ pt: 0 }}>
             <TableContainer component={Paper} variant="outlined">
-            <Table
+              <Table
                 size="small"
                 sx={{
                   borderCollapse: "collapse",
@@ -431,26 +503,62 @@ const PaymentsPage = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Batch</TableCell>
-                    <TableCell>User</TableCell>
-                    <TableCell>Connection</TableCell>
-                    <TableCell>Amount</TableCell>
-                    <TableCell>Message</TableCell>                
+                    <TableCell onClick={() => handleNotifSort("full_name")} sx={{ cursor: "pointer" }}>
+                      User <NotifSortIcon field="full_name" />
+                    </TableCell>
+                    <TableCell onClick={() => handleNotifSort("connection_id")} sx={{ cursor: "pointer" }}>
+                      Connection <NotifSortIcon field="connection_id" />
+                    </TableCell>
+                    <TableCell align="right" onClick={() => handleNotifSort("amount")} sx={{ cursor: "pointer" }}>
+                      Amount <NotifSortIcon field="amount" />
+                    </TableCell>
+                    <TableCell onClick={() => handleNotifSort("message")} sx={{ cursor: "pointer" }}>
+                      Message <NotifSortIcon field="message" />
+                    </TableCell>
+                    <TableCell onClick={() => handleNotifSort("created_at")} sx={{ cursor: "pointer" }}>
+                      Received <NotifSortIcon field="created_at" />
+                    </TableCell>
                     <TableCell>Action</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {notificationLoading ? (
-                    <TableRow><TableCell colSpan={7}><Skeleton variant="text" width="100%" /></TableCell></TableRow>
+                    <>
+                      {Array.from({ length: notifRowsPerPage }).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Skeleton variant="text" width={56} height={24} /></TableCell>
+                          <TableCell><Skeleton variant="text" width="70%" height={24} /></TableCell>
+                          <TableCell><Skeleton variant="text" width={64} height={24} /></TableCell>
+                          <TableCell align="right"><Skeleton variant="text" width={48} height={24} sx={{ ml: "auto" }} /></TableCell>
+                          <TableCell><Skeleton variant="text" width="80%" height={24} /></TableCell>
+                          <TableCell><Skeleton variant="text" width={100} height={24} /></TableCell>
+                          <TableCell><Skeleton variant="rounded" width={88} height={32} /></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   ) : notifications.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} align="center">No notifications</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        No notifications
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    notifications.map((n, index) => (
+                    paginatedNotifications.map((n, index) => (
                       <TableRow key={n.uuid} hover>
-                        <TableCell>{`Batch ${index + 1}`}</TableCell>
-                        <TableCell><Link to={`/${n.user_id}`} style={{ fontWeight: 600, color: "inherit", textDecoration: "none" }} onClick={(e) => e.stopPropagation()}>{n.full_name ?? "—"}</Link></TableCell>
+                        <TableCell>{`Batch ${notifPage * notifRowsPerPage + index + 1}`}</TableCell>
+                        <TableCell>
+                          <Link
+                            to={`/${n.user_id}`}
+                            style={{ fontWeight: 600, color: "inherit", textDecoration: "none" }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {n.full_name ?? "—"}
+                          </Link>
+                        </TableCell>
                         <TableCell>{n.connection_id || "—"}</TableCell>
-                        <TableCell>₹{n.details?.amount ?? 0}</TableCell>
+                        <TableCell align="right">₹{n.details?.amount ?? 0}</TableCell>
                         <TableCell>{n.details?.message || "—"}</TableCell>
+                        <TableCell>{formatDateTime(n.created_at)}</TableCell>
                         <TableCell>
                           <Button
                             size="small"
@@ -476,6 +584,15 @@ const PaymentsPage = () => {
                   )}
                 </TableBody>
               </Table>
+              <TablePagination
+                component="div"
+                count={sortedNotifications.length}
+                page={notifPage}
+                onPageChange={handleNotifPageChange}
+                rowsPerPage={notifRowsPerPage}
+                rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+                onRowsPerPageChange={handleNotifRowsPerPageChange}
+              />
             </TableContainer>
           </CardContent>
         </Card>
@@ -509,7 +626,7 @@ const PaymentsPage = () => {
       <Card sx={{ mt: 2 }} variant="outlined">
         <CardHeader
           title="Payment History"
-          subheader="Latest records per page (5–50) — click a row to open profile"
+          subheader="Latest records per page (10–50) — click a row to open profile"
         />
         <CardContent sx={{ pt: 0 }}>
           <TableContainer component={Paper} variant="outlined">

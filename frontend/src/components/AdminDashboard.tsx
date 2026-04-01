@@ -1,32 +1,47 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
-  CardHeader,
   Box,
   Typography,
   Chip,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  CircularProgress,
 } from "@mui/material";
-import People from "@mui/icons-material/People";
-import CreditCard from "@mui/icons-material/CreditCard";
-import MoreVert from "@mui/icons-material/MoreVert";
-import List from "@mui/icons-material/List";
 import {
   getAllConsumptionAdmin,
   getAllPaymentsAdmin,
   getAllUsers,
+  getAdminKPIs,
+  exportConsumersExcel,
+  getAllUnpaidConsumptionAdmin,
+  getPaymentsThisMonthAdmin,
+  type AdminKPIs,
 } from "../services/apiService";
+import { toast } from "@/hooks/use-toast";
+import Download from "@mui/icons-material/Download";
+import Close from "@mui/icons-material/Close";
+import HowToReg from "@mui/icons-material/HowToReg";
+import AdminPanelSettings from "@mui/icons-material/AdminPanelSettings";
+import CurrencyRupee from "@mui/icons-material/CurrencyRupee";
+import ReceiptLong from "@mui/icons-material/ReceiptLong";
+import Payments from "@mui/icons-material/Payments";
 import type { ConsumptionRecord, PaymentRecord } from "../services/apiService";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+import { ConsumptionMonthCard, PaymentsMonthCard } from "./DashboardTrendCharts";
+import { DashboardHero, DashboardPanel, AdminKpiTile } from "./DashboardChrome";
+import { Link } from "react-router-dom";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -35,26 +50,49 @@ const AdminDashboard = () => {
   const [consumptionList, setConsumptionList] = useState<ConsumptionRecord[]>([]);
   const [paymentsList, setPaymentsList] = useState<PaymentRecord[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [kpis, setKpis] = useState<AdminKPIs | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [unpaidDialogOpen, setUnpaidDialogOpen] = useState(false);
+  const [unpaidRows, setUnpaidRows] = useState<ConsumptionRecord[]>([]);
+  const [unpaidLoading, setUnpaidLoading] = useState(false);
+  const [monthPayDialogOpen, setMonthPayDialogOpen] = useState(false);
+  const [monthPayRows, setMonthPayRows] = useState<PaymentRecord[]>([]);
+  const [monthPayLoading, setMonthPayLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [c, p, u] = await Promise.all([
+        const [c, p, u, k] = await Promise.all([
           getAllConsumptionAdmin(),
           getAllPaymentsAdmin(),
           getAllUsers(),
+          getAdminKPIs(),
         ]);
         setConsumptionList(Array.isArray(c) ? c : (c?.records ?? []));
         setPaymentsList(Array.isArray(p) ? p : (p?.payments ?? []));
         setUsers(Array.isArray(u) ? u : (u?.users ?? []));
+        setKpis(k);
       } catch {
         setConsumptionList([]);
         setPaymentsList([]);
         setUsers([]);
+        setKpis(null);
       }
     };
     load();
   }, []);
+
+  const handleExportConsumers = async () => {
+    setExporting(true);
+    try {
+      await exportConsumersExcel();
+      toast({ title: "Download started", description: "Consumers spreadsheet (Excel) is downloading." });
+    } catch {
+      toast({ title: "Export failed", description: "Could not download the file.", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const consumptionByMonth = useMemo(() => {
     const map = new Map<string, { month: string; liters: number; amount: number; sortKey: number }>();
@@ -104,123 +142,242 @@ const AdminDashboard = () => {
       .slice(-12);
   }, [paymentsList]);
 
-  const totalUsers = users.length;
-  const totalDueAmount = users.reduce((sum, user) => sum + (user.dueAmount || 0), 0);
   const pendingPayments = users.filter((u) => u.payment_status === "PENDING").length;
   const completedPayments = users.filter((u) => u.payment_status === "COMPLETED").length;
   const adminCount = users.filter((u) => u.role === "ADMIN").length;
 
+  const signupsThisMonth = users.filter((u) => new Date(u.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length;
+
+  const openUnpaidDialog = async () => {
+    setUnpaidDialogOpen(true);
+    setUnpaidLoading(true);
+    try {
+      const rows = await getAllUnpaidConsumptionAdmin();
+      setUnpaidRows(rows);
+    } catch {
+      setUnpaidRows([]);
+      toast({ title: "Could not load unpaid bills", variant: "destructive" });
+    } finally {
+      setUnpaidLoading(false);
+    }
+  };
+
+  const openMonthPaymentsDialog = async () => {
+    setMonthPayDialogOpen(true);
+    setMonthPayLoading(true);
+    try {
+      const rows = await getPaymentsThisMonthAdmin();
+      setMonthPayRows(rows);
+    } catch {
+      setMonthPayRows([]);
+      toast({ title: "Could not load payments", variant: "destructive" });
+    } finally {
+      setMonthPayLoading(false);
+    }
+  };
+
   return (
-    <Box sx={{ width: "100%" }}>
-      <Typography variant="h5" fontWeight={600} sx={{ mb: 2, color: "text.primary" }}>
-        Welcome, Admin 👋
-      </Typography>
+    <Box sx={{ width: "100%", maxWidth: 1280, mx: "auto" }}>
+      <DashboardHero
+        eyebrow="Operations"
+        title="Water utility dashboard"
+        subtitle="Monitor consumers, collections, and billing health across the system. Export consumer data when you need a spreadsheet."
+        action={
+          <Button
+            variant="contained"
+            startIcon={<Download />}
+            onClick={handleExportConsumers}
+            disabled={exporting}
+            sx={{ borderRadius: 2.5, textTransform: "none", fontWeight: 700, px: 2.5, boxShadow: "none" }}
+          >
+            {exporting ? "Exporting…" : "Export consumers"}
+          </Button>
+        }
+      />
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" }, gap: 2, mb: 2 }}>
-        <Card sx={{ overflow: "hidden", borderRadius: 3, background: "linear-gradient(135deg, #1976d2, #3949ab, #7c4dff)", color: "white" }}>
-          <CardContent sx={{ position: "relative", p: 3 }}>
-            <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top, rgba(255,255,255,0.25), transparent 45%)" }} />
-            <Box sx={{ position: "relative", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
-              <Box>
-                <Typography variant="overline" sx={{ opacity: 0.8 }}>System health</Typography>
-                <Typography variant="h5" fontWeight={600}>WaterBill Manager</Typography>
-                <Typography sx={{ opacity: 0.9 }}>Monitor user activity, dues, and account health at a glance.</Typography>
-              </Box>
-              <Chip label="Live" sx={{ bgcolor: "rgba(255,255,255,0.2)", color: "white", border: "1px solid rgba(255,255,255,0.3)" }} />
-            </Box>
-            <Box sx={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, mt: 2, textAlign: "center" }}>
-              <Box>
-                <Typography variant="overline" sx={{ opacity: 0.8 }}>Users</Typography>
-                <Typography variant="h4" fontWeight={600} style={{ cursor: "pointer" }} onClick={() =>  navigate("/consumers")}>{totalUsers}
-              
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="overline" sx={{ opacity: 0.8 }}>Outstanding</Typography>
-                <Typography variant="h4" fontWeight={600}>₹{totalDueAmount.toLocaleString("en-IN")}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="overline" sx={{ opacity: 0.8 }}>Pending</Typography>
-                <Typography variant="h4" fontWeight={600}>{pendingPayments}</Typography>
-              </Box>
-            </Box>
+      {kpis ? (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" }, gap: 2, mb: 3 }}>
+          <AdminKpiTile
+            icon={<HowToReg sx={{ fontSize: 20 }} />}
+            label="Active consumers"
+            value={kpis.active_consumers}
+            hint="Open list →"
+            onClick={() => navigate("/consumers")}
+            accent="success"
+          />
+          <AdminKpiTile
+            icon={<AdminPanelSettings sx={{ fontSize: 20 }} />}
+            label="Admins"
+            value={adminCount}
+            hint="Employee(s) →"
+            onClick={() => navigate("/employees")}
+            accent="info"
+          />
+          <AdminKpiTile
+            icon={<CurrencyRupee sx={{ fontSize: 20 }} />}
+            label="Total outstanding"
+            value={`₹${kpis.total_outstanding.toLocaleString("en-IN")}`}
+            hint="Consumption →"
+            onClick={() => navigate("/consumption")}
+            accent="warning"
+          />
+          <AdminKpiTile
+            icon={<ReceiptLong sx={{ fontSize: 20 }} />}
+            label="Unpaid bills"
+            value={kpis.unpaid_bill_count}
+            hint="View details"
+            onClick={() => openUnpaidDialog()}
+            accent="error"
+          />
+          <AdminKpiTile
+            icon={<Payments sx={{ fontSize: 20 }} />}
+            label="Collected (this month)"
+            value={`₹${kpis.collected_this_month.toLocaleString("en-IN")}`}
+            hint={`${kpis.payment_count_this_month} payment(s) · details`}
+            onClick={() => openMonthPaymentsDialog()}
+            accent="success"
+          />
+        </Box>
+      ) : (
+        <Card variant="outlined" sx={{ borderRadius: 3, mb: 3, borderColor: "divider" }}>
+          <CardContent sx={{ py: 2.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              KPIs unavailable. Check API and database connection.
+            </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ borderRadius: 3, border: 1, borderColor: "grey.200" }}>
-          <CardHeader title="Quick snapshot" subheader="Key insights for this cycle" />
-          <CardContent sx={{ pt: 0 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", py: 1 }}><Typography color="text.secondary">Admins</Typography><Typography fontWeight={600}>{adminCount}</Typography></Box>
-            <Box sx={{ display: "flex", justifyContent: "space-between", py: 1 }}><Typography color="text.secondary">Completed payments</Typography><Typography fontWeight={600} color="success.main">{completedPayments}</Typography></Box>
-            <Box sx={{ display: "flex", justifyContent: "space-between", py: 1 }}><Typography color="text.secondary">Pending approvals</Typography><Typography fontWeight={600} color="warning.main">{pendingPayments}</Typography></Box>
-            <Box sx={{ display: "flex", justifyContent: "space-between", py: 1 }}><Typography color="text.secondary">Average due per user</Typography><Typography fontWeight={600}>₹{totalUsers ? Math.round(totalDueAmount / Math.max(totalUsers, 1)) : 0}</Typography></Box>
-          </CardContent>
-        </Card>
+      )}
+
+      <DashboardPanel
+        accent="neutral"
+        title="Activity snapshot"
+        subheader="Quick signals — use Consumers, Employee(s), Consumption, and Payments for full detail"
+        sx={{ mb: 3 }}
+      >
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25 }}>
+          <Chip label={`Pending balance (users): ${pendingPayments}`} color="warning" variant="outlined" sx={{ fontWeight: 600, borderRadius: 2 }} />
+          <Chip label={`No pending due: ${completedPayments}`} color="success" variant="outlined" sx={{ fontWeight: 600, borderRadius: 2 }} />
+          <Chip label={`New sign-ups (month): ${signupsThisMonth}`} variant="outlined" sx={{ fontWeight: 600, borderRadius: 2 }} />
+          <Chip
+            label={`Consumption records: ${kpis?.total_consumption_records ?? consumptionList.length}`}
+            variant="outlined"
+            sx={{ fontWeight: 600, borderRadius: 2 }}
+          />
+        </Box>
+      </DashboardPanel>
+
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2.5, mb: 3 }}>
+        <ConsumptionMonthCard
+          title="Consumption / month"
+          subheader="Aggregated liters and billed amount across all consumers — hover for values"
+          data={consumptionByMonth}
+        />
+        <PaymentsMonthCard
+          title="Payments / month"
+          subheader="Total payments received (₹) per calendar month (all users)"
+          data={paymentsByMonth}
+        />
       </Box>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", xl: "repeat(4, 1fr)" }, gap: 2, mb: 3 }}>
-        {[
-          { label: "New registrations", value: users.filter((u) => new Date(u.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length, sub: "This month", icon: <People />, color: "primary.main" },
-          { label: "Average due", value: `₹${totalUsers ? Math.round(totalDueAmount / Math.max(totalUsers, 1)).toLocaleString("en-IN") : 0}`, sub: "Per user", icon: <CreditCard />, color: "success.main" },
-          { label: "Pending verifications", value: users.filter((u) => u.status === "PENDING").length, sub: "Need admin action", icon: <MoreVert />, color: "secondary.main" },
-          { label: "Inactive users", value: users.filter((u) => u.status === "INACTIVE").length, sub: "No activity in 30 days", icon: <List />, color: "warning.main" },
-        ].map((item, i) => (
-          <Card key={i} sx={{ borderRadius: 2, border: 1, borderColor: "grey.200" }}>
-            <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: 2 }}>
-              <Box sx={{ borderRadius: 2, bgcolor: "grey.100", p: 1.5, color: item.color }}>{item.icon}</Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase" }}>{item.label}</Typography>
-                <Typography variant="h6" fontWeight={600}>{item.value}</Typography>
-                <Typography variant="caption" color="text.secondary">{item.sub}</Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
+      <Dialog open={unpaidDialogOpen} onClose={() => setUnpaidDialogOpen(false)} maxWidth="md" fullWidth scroll="paper">
+        <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
+          Unpaid bills ({unpaidRows.length})
+          <IconButton aria-label="Close" onClick={() => setUnpaidDialogOpen(false)} size="small">
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 1 }}>
+          {unpaidLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : unpaidRows.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 2 }}>No unpaid bills.</Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 420 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Consumer</TableCell>
+                    <TableCell>Connection</TableCell>
+                    <TableCell>Period</TableCell>
+                    <TableCell align="right">Liters</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                    <TableCell align="right">Bill</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {unpaidRows.map((r) => (
+                    <TableRow key={r.uuid}>
+                      <TableCell>{r.full_name ?? "—"}</TableCell>
+                      <TableCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{r.connection_id ?? "—"}</TableCell>
+                      <TableCell>
+                        {r.month} {r.year}
+                      </TableCell>
+                      <TableCell align="right">{Number(r.consumption_liters).toLocaleString("en-IN")}</TableCell>
+                      <TableCell align="right">₹{Number(r.amount).toFixed(2)}</TableCell>
+                      <TableCell align="right">
+                        <Button component={Link} to={`/bill/${r.uuid}`} size="small" target="_blank" rel="noopener noreferrer">
+                          Print
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+      </Dialog>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2, mb: 3 }}>
-        <Card sx={{ borderRadius: 2, border: 1, borderColor: "grey.200" }}>
-          <CardHeader title="Consumption / month" subheader="Total liters and amount by billing period" />
-          <CardContent sx={{ pt: 0 }}>
-            <Box sx={{ width: "100%", height: 280 }}>
-              {consumptionByMonth.length === 0 ? (
-                <Typography color="text.secondary" textAlign="center" py={4}>No consumption data</Typography>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={consumptionByMonth} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
-                    <Tooltip formatter={(value: number, name: string) => [name === "liters" ? `${value} L` : `₹${value}`, name === "liters" ? "Liters" : "Amount"]} labelFormatter={(label) => label} />
-                    <Bar yAxisId="left" dataKey="liters" fill="#2196f3" name="liters" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="right" dataKey="amount" fill="#4caf50" name="amount" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
+      <Dialog open={monthPayDialogOpen} onClose={() => setMonthPayDialogOpen(false)} maxWidth="md" fullWidth scroll="paper">
+        <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
+          Payments this month ({monthPayRows.length})
+          <IconButton aria-label="Close" onClick={() => setMonthPayDialogOpen(false)} size="small">
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 1 }}>
+          {monthPayLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
             </Box>
-          </CardContent>
-        </Card>
-        <Card sx={{ borderRadius: 2, border: 1, borderColor: "grey.200" }}>
-          <CardHeader title="Payments / month" subheader="Total payments received by month" />
-          <CardContent sx={{ pt: 0 }}>
-            <Box sx={{ width: "100%", height: 280 }}>
-              {paymentsByMonth.length === 0 ? (
-                <Typography color="text.secondary" textAlign="center" py={4}>No payment data</Typography>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={paymentsByMonth} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
-                    <Tooltip formatter={(value: number) => [`₹${value}`, "Amount"]} labelFormatter={(label) => label} />
-                    <Bar dataKey="amount" fill="#4caf50" name="amount" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
+          ) : monthPayRows.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 2 }}>No payments recorded this month.</Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 420 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Paid at</TableCell>
+                    <TableCell>Consumer</TableCell>
+                    <TableCell>Connection</TableCell>
+                    <TableCell>Bill period</TableCell>
+                    <TableCell>Method</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {monthPayRows.map((r) => (
+                    <TableRow key={r.uuid}>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {r.paid_at ? new Date(r.paid_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—"}
+                      </TableCell>
+                      <TableCell>{r.full_name ?? "—"}</TableCell>
+                      <TableCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>{r.connection_id ?? "—"}</TableCell>
+                      <TableCell>
+                        {r.month != null && r.year != null ? `${r.month} ${r.year}` : "—"}
+                      </TableCell>
+                      <TableCell>{r.payment_method ?? "—"}</TableCell>
+                      <TableCell align="right">₹{Number(r.amount).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

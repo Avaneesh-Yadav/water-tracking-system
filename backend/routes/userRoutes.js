@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 const multer = require('multer');
 const userController = require('../controllers/userController');
@@ -16,6 +18,7 @@ const reportController = require('../controllers/reportController');
 const backupController = require('../controllers/backupController');
 const analyticsController = require('../controllers/analyticsController');
 const userDashboardController = require('../controllers/userDashboardController');
+const exportController = require('../controllers/exportController');
 const authenticate = require('../middleware/authenticate');
 const requireAdmin = require('../middleware/requireAdmin');
 const { auditAdmin } = require('../middleware/auditAdmin');
@@ -49,6 +52,29 @@ const upload = multer({
   }
 });
 
+const meterUploadDir = path.join(__dirname, '..', 'uploads', 'meter');
+try {
+  fs.mkdirSync(meterUploadDir, { recursive: true });
+} catch (_) {
+  /* ignore */
+}
+const meterStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, meterUploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '') || '.jpg';
+    const safe = (req.params.uuid || 'row').replace(/[^a-zA-Z0-9-_]/g, '');
+    cb(null, `meter-${safe}-${Date.now()}${ext}`);
+  },
+});
+const uploadMeter = multer({
+  storage: meterStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(jpeg|png|webp|gif)$/i.test(file.mimetype || '');
+    cb(ok ? null : new Error('Only JPEG, PNG, WebP, or GIF images are allowed'), ok);
+  },
+});
+
 // Public routes (no auth required)
 router.post('/register', registerController.registerUser);
 router.post('/login', logInController.loginUser);
@@ -75,6 +101,7 @@ router.put('/profile/update', userController.updateProfile);
 // Consumption routes - User
 router.get('/consumption/history', consumptionController.getConsumptionHistory);
 router.get('/consumption/due', consumptionController.getDueAmount);
+router.get('/consumption/due-summary', consumptionController.getDueSummary);
 router.get('/consumption/unpaid', consumptionController.getUnpaidBills);
 
 // Payment routes - User
@@ -91,6 +118,7 @@ router.get('/user/:uuid', requireAdminOrSelf, userController.getUserByUuid);
 // User dashboard summary and bill
 router.get('/user/summary', userDashboardController.getSummary);
 router.get('/user/bill/:consumption_uuid', userDashboardController.getBillData);
+router.get('/admin/bill/:consumption_uuid', requireAdmin, userDashboardController.getBillDataAdmin);
 
 // Admin-only routes - User management
 router.post('/admin/create-user', requireAdmin, auditAdmin('CREATE_USER', 'user', (req, body) => body?.uuid), adminController.createAdminUser);
@@ -105,12 +133,15 @@ router.post('/admin/bulk-status', requireAdmin, auditAdmin('BULK_UPDATE_STATUS')
 router.post('/admin/consumption', requireAdmin, auditAdmin('ADD_CONSUMPTION', 'consumption', (req, body) => body?.consumption?.uuid), consumptionController.addConsumption);
 router.post('/admin/bulk-consumption', requireAdmin, upload.single('file'), auditAdmin('BULK_IMPORT_CONSUMPTION'), adminController.bulkImportConsumption);
 router.get('/admin/consumption/all', requireAdmin, consumptionController.getAllConsumption);
+router.get('/admin/consumption/unpaid-all', requireAdmin, consumptionController.getAllUnpaidConsumptionAdmin);
 router.get('/admin/consumption/:user_uuid', requireAdmin, consumptionController.getConsumptionHistoryByUser);
 router.put('/admin/consumption/:uuid', requireAdmin, auditAdmin('UPDATE_CONSUMPTION', 'consumption', (req) => req.params.uuid), consumptionController.updateConsumption);
+router.post('/admin/meter-photo/:uuid', requireAdmin, uploadMeter.single('meter_photo'), consumptionController.uploadMeterPhoto);
 router.delete('/admin/consumption/:uuid', requireAdmin, auditAdmin('DELETE_CONSUMPTION', 'consumption', (req) => req.params.uuid), consumptionController.deleteConsumption);
 
 // Admin-only routes - Payment management
 router.get('/admin/payments', requireAdmin, paymentController.getAllPayments);
+router.get('/admin/payments/this-month', requireAdmin, paymentController.getPaymentsThisMonthAdmin);
 router.get('/admin/payments/:user_uuid', requireAdmin, paymentController.getPaymentHistoryByUser);
 router.get('/admin/notifications', requireAdmin, notificationController.getAllNotificationsAdmin);
 router.get('/admin/notifications/unread-count', requireAdmin, notificationController.getUnreadCountAdmin);
@@ -141,9 +172,12 @@ router.get('/admin/backup/export', requireAdmin, backupController.exportData);
 router.post('/admin/backup/restore', requireAdmin, auditAdmin('BACKUP_RESTORE'), backupController.restoreData);
 
 // Admin - Analytics
+router.get('/admin/analytics/kpis', requireAdmin, analyticsController.getKPIs);
 router.get('/admin/analytics/consumption-trends', requireAdmin, analyticsController.getConsumptionTrends);
 router.get('/admin/analytics/payment-methods', requireAdmin, analyticsController.getPaymentMethodStats);
 router.get('/admin/analytics/collection-efficiency', requireAdmin, analyticsController.getCollectionEfficiency);
+
+router.get('/admin/export/consumers', requireAdmin, exportController.exportConsumers);
 
 module.exports = router;
 

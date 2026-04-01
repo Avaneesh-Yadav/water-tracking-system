@@ -15,16 +15,26 @@ class WaterConsumption {
         this.updated_at = updated_at;
     }
 
-    static create(uuid, user_uuid, month, year, consumption_liters, rate_per_liter, callback) {
+    static create(uuid, user_uuid, month, year, consumption_liters, rate_per_liter, optsOrCb, maybeCb) {
+        let opts = {};
+        let callback = maybeCb;
+        if (typeof optsOrCb === 'function') {
+            callback = optsOrCb;
+        } else if (optsOrCb && typeof optsOrCb === 'object') {
+            opts = optsOrCb;
+        }
         const now = new Date();
         const payment_status = 'UNPAID';
         const amount = consumption_liters * rate_per_liter;
-        
+        const prev = opts.previous_meter_reading != null ? parseFloat(opts.previous_meter_reading) : null;
+        const curr = opts.current_meter_reading != null ? parseFloat(opts.current_meter_reading) : null;
+        const photo = opts.meter_photo_path || null;
+
         pool.query(
             `INSERT INTO water_consumption 
-            (uuid, user_uuid, month, year, consumption_liters, rate_per_liter, amount, payment_status, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [uuid, user_uuid, month, year, consumption_liters, rate_per_liter, amount, payment_status, now, now],
+            (uuid, user_uuid, month, year, consumption_liters, previous_meter_reading, current_meter_reading, meter_photo_path, rate_per_liter, amount, payment_status, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [uuid, user_uuid, month, year, consumption_liters, prev, curr, photo, rate_per_liter, amount, payment_status, now, now],
             callback
         );
     }
@@ -105,12 +115,43 @@ class WaterConsumption {
         );
     }
 
-    static update(uuid, consumption_liters, rate_per_liter, callback) {
+    static update(uuid, consumption_liters, rate_per_liter, optsOrCb, maybeCb) {
+        let opts = {};
+        let callback = maybeCb;
+        if (typeof optsOrCb === 'function') {
+            callback = optsOrCb;
+            opts = {};
+        } else if (optsOrCb && typeof optsOrCb === 'object') {
+            opts = optsOrCb;
+        }
         const now = new Date();
         const amount = consumption_liters * rate_per_liter;
+
+        const parts = ['consumption_liters = ?', 'rate_per_liter = ?', 'amount = ?', 'updated_at = ?'];
+        const vals = [consumption_liters, rate_per_liter, amount, now];
+
+        if (opts && opts.previous_meter_reading !== undefined) {
+            parts.push('previous_meter_reading = ?');
+            vals.push(opts.previous_meter_reading == null ? null : parseFloat(opts.previous_meter_reading));
+        }
+        if (opts && opts.current_meter_reading !== undefined) {
+            parts.push('current_meter_reading = ?');
+            vals.push(opts.current_meter_reading == null ? null : parseFloat(opts.current_meter_reading));
+        }
+        if (opts && opts.meter_photo_path !== undefined) {
+            parts.push('meter_photo_path = ?');
+            vals.push(opts.meter_photo_path);
+        }
+
+        vals.push(uuid);
+        pool.query(`UPDATE water_consumption SET ${parts.join(', ')} WHERE uuid = ?`, vals, callback);
+    }
+
+    static updateMeterPhotoPath(uuid, meter_photo_path, callback) {
+        const now = new Date();
         pool.query(
-            'UPDATE water_consumption SET consumption_liters = ?, rate_per_liter = ?, amount = ?, updated_at = ? WHERE uuid = ?',
-            [consumption_liters, rate_per_liter, amount, now, uuid],
+            'UPDATE water_consumption SET meter_photo_path = ?, updated_at = ? WHERE uuid = ?',
+            [meter_photo_path, now, uuid],
             callback
         );
     }
@@ -207,6 +248,20 @@ class WaterConsumption {
         pool.query(
             `SELECT * FROM water_consumption WHERE user_uuid = ? AND (CAST(consumption_liters AS CHAR) LIKE ? OR month LIKE ? OR CAST(year AS CHAR) LIKE ?) ORDER BY created_at DESC`,
             [user_uuid, term, term, term],
+            callback
+        );
+    }
+
+    /** All UNPAID rows with consumer identity (admin dashboard / reports) */
+    static getAllUnpaidWithUser(callback) {
+        const monthOrder =
+            "FIELD(wc.month, 'December','November','October','September','August','July','June','May','April','March','February','January')";
+        pool.query(
+            `SELECT wc.*, u.full_name, u.mobile_number, u.connection_id
+             FROM water_consumption wc
+             JOIN users u ON wc.user_uuid = u.uuid
+             WHERE wc.payment_status = 'UNPAID'
+             ORDER BY wc.year DESC, ${monthOrder} DESC, wc.created_at DESC`,
             callback
         );
     }

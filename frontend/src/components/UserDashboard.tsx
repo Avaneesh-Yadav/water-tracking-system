@@ -18,29 +18,27 @@ import {
   Chip,
 } from "@mui/material";
 import Refresh from "@mui/icons-material/Refresh";
+import PersonOutline from "@mui/icons-material/PersonOutline";
+import AccountBalanceWallet from "@mui/icons-material/AccountBalanceWallet";
+import WaterDrop from "@mui/icons-material/WaterDrop";
 import {
   getUserByUUID,
   getConsumptionHistory,
   getPaymentHistory,
   getDueAmount,
+  getDueSummary,
   generatePaymentQR,
   notifyPaymentCompleted,
   ConsumptionRecord,
   PaymentRecord,
   QRData,
+  type DueSummary,
 } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+import { useNavigate, Link } from "react-router-dom";
 import PaymentDialog from "@/components/PaymentDialog";
+import { ConsumptionMonthCard, PaymentsMonthCard } from "@/components/DashboardTrendCharts";
+import { DashboardHero, DashboardPanel, DashboardMetricRow } from "@/components/DashboardChrome";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -64,6 +62,7 @@ const UserDashboard = () => {
   const [consumptionData, setConsumptionData] = useState<ConsumptionRecord[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([]);
   const [dueAmount, setDueAmount] = useState(0);
+  const [dueSummary, setDueSummary] = useState<DueSummary | null>(null);
 
   useEffect(() => {
     fetchAllData();
@@ -96,8 +95,9 @@ const UserDashboard = () => {
       setConsumptionData(Array.isArray(consumption) ? consumption : (consumption?.history ?? []));
       const payments = await getPaymentHistory();
       setPaymentHistory(Array.isArray(payments) ? payments : (payments?.history ?? []));
-      const due = await getDueAmount();
+      const [due, summary] = await Promise.all([getDueAmount(), getDueSummary()]);
       setDueAmount(parseFloat(String(due)) || 0);
+      setDueSummary(summary);
     } catch (error) {
       toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
     } finally {
@@ -163,14 +163,6 @@ const UserDashboard = () => {
     }
   };
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-
-  const lastPayment = useMemo(() => {
-    if (paymentHistory.length === 0) return null;
-    return [...paymentHistory].sort((a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime())[0];
-  }, [paymentHistory]);
-
   const consumptionByMonth = useMemo(() => {
     const map = new Map<string, { month: string; liters: number; amount: number; sortKey: number }>();
     const monthNum = (m: string | number): number => {
@@ -221,34 +213,14 @@ const UserDashboard = () => {
 
   if (loading) {
     return (
-      <Box sx={{ maxWidth: 1280, mx: "auto", width: "100%", p: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-          <Skeleton variant="text" width={280} height={40} />
-          <Skeleton variant="rounded" width={100} height={40} />
+      <Box sx={{ maxWidth: 1280, mx: "auto", width: "100%" }}>
+        <Skeleton variant="rounded" height={120} sx={{ mb: 3, borderRadius: 3 }} />
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(3, 1fr)" }, gap: 2.5, mb: 3 }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} variant="rounded" height={220} sx={{ borderRadius: 3 }} />
+          ))}
         </Box>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(3, 1fr)" }, gap: 2, mb: 3 }}>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardHeader title={<Skeleton variant="text" width={180} height={28} />} />
-            <CardContent sx={{ pt: 0 }}>
-              <Skeleton variant="text" width="80%" height={24} sx={{ mb: 1 }} />
-              <Skeleton variant="text" width="70%" height={24} sx={{ mb: 1 }} />
-              <Skeleton variant="text" width="90%" height={24} />
-            </CardContent>
-          </Card>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardHeader title={<Skeleton variant="text" width={120} height={28} />} subheader={<Skeleton variant="text" width={200} height={20} sx={{ mt: 0.5 }} />} />
-            <CardContent sx={{ pt: 0 }}><Skeleton variant="text" width={100} height={48} /></CardContent>
-          </Card>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardHeader title={<Skeleton variant="text" width={140} height={28} />} />
-            <CardContent sx={{ pt: 0 }}>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} variant="text" width="100%" height={24} sx={{ mb: 0.5 }} />
-              ))}
-            </CardContent>
-          </Card>
-        </Box>
-        <Card sx={{ borderRadius: 2 }}>
+        <Card sx={{ borderRadius: 3 }}>
           <CardHeader title={<Skeleton variant="text" width={160} height={28} />} />
           <CardContent sx={{ pt: 0 }}>
             <TableContainer component={Paper} variant="outlined">
@@ -280,92 +252,112 @@ const UserDashboard = () => {
 
   return (
     <Box sx={{ maxWidth: 1280, mx: "auto", width: "100%" }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-          <Typography variant="h5" fontWeight={600}>Welcome, {userData.name} 👋</Typography>
-          <Button variant="outlined" startIcon={<Refresh />} onClick={fetchAllData}>Refresh</Button>
-        </Box>
-
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(3, 1fr)" }, gap: 2, mb: 3 }}>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardHeader title="📄 Personal Information" />
-            <CardContent sx={{ pt: 0 }}>
-              <Typography variant="body2"><strong>Name:</strong> {userData.name}</Typography>
-              <Typography variant="body2"><strong>Mobile:</strong> {userData.mobileNumber}</Typography>
-              <Typography variant="body2"><strong>Address:</strong> {userData.address}</Typography>
-              <Typography variant="body2" component="div"><strong>Connection ID:</strong> <Box component="span" sx={{ fontFamily: "monospace", color: "primary.main" }}>{userData.connectionId}</Box></Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
-                <Typography variant="body2" component="span"><strong>Status:</strong></Typography>
-                <Chip size="small" label={userData.status} color={userData.status === "ACTIVE" ? "success" : "error"} />
+        <DashboardHero
+          eyebrow="Consumer portal"
+          title={`Welcome back, ${userData.name}`}
+          subtitle={
+            <>
+              Connection{" "}
+              <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 700, color: "primary.main" }}>
+                {userData.connectionId}
               </Box>
-            </CardContent>
-          </Card>
-          <Card sx={{ borderRadius: 2, bgcolor: "warning.50" }}>
-            <CardHeader
-              title="💰 Due Amount"
-              subheader="Total pending payment. Use Refresh if admin added new readings."
+              {" "}— review usage, pay water charges, and open printable bills.
+            </>
+          }
+          action={
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              onClick={fetchAllData}
+              sx={{ borderRadius: 2.5, textTransform: "none", fontWeight: 600, px: 2 }}
+            >
+              Refresh
+            </Button>
+          }
+        />
+
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(3, 1fr)" }, gap: 2.5, mb: 3 }}>
+          <DashboardPanel
+            accent="primary"
+            title="Your profile"
+            subheader="Registered name, contact, and service address"
+            headerIcon={<PersonOutline fontSize="small" />}
+          >
+            <DashboardMetricRow label="Name" value={userData.name} />
+            <DashboardMetricRow label="Mobile" value={userData.mobileNumber} />
+            <DashboardMetricRow label="Address" value={userData.address || "—"} />
+            <DashboardMetricRow
+              label="Connection ID"
+              value={<Box component="span" sx={{ fontFamily: "monospace", color: "primary.main" }}>{userData.connectionId}</Box>}
             />
-            <CardContent sx={{ pt: 0 }}>
-              <Typography variant="h4" fontWeight="bold" color="warning.dark">₹{dueAmount.toFixed(2)}</Typography>
-            </CardContent>
-            <CardActions>
-              {dueAmount > 0 && (
-                <Button variant="contained" color="warning" fullWidth onClick={handlePayDue}>Pay Total Due</Button>
-              )}
-            </CardActions>
-          </Card>
-          <Card sx={{ borderRadius: 2 }}>
-            <CardHeader title="📊 Consumption Stats" subheader="Your water usage overview" />
-            <CardContent sx={{ pt: 0 }}>
-              <Typography variant="body2"><strong>Total Records:</strong> {consumptionData.length}</Typography>
-              <Typography variant="body2"><strong>Paid Bills:</strong> {consumptionData.filter((c) => c.status === "PAID").length}</Typography>
-              <Typography variant="body2"><strong>Unpaid Bills:</strong> {consumptionData.filter((c) => c.status === "UNPAID").length}</Typography>
-            </CardContent>
-          </Card>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, pt: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Status
+              </Typography>
+              <Chip size="small" label={userData.status} color={userData.status === "ACTIVE" ? "success" : "error"} sx={{ fontWeight: 600 }} />
+            </Box>
+          </DashboardPanel>
+
+          <DashboardPanel
+            accent="warning"
+            title="Outstanding balance"
+            subheader={
+              dueSummary
+                ? `${dueSummary.unpaid_bill_count} unpaid bill(s) · Typical due by day ${dueSummary.bill_due_day} of the month`
+                : "Pending water charges. Refresh after new meter readings are posted."
+            }
+            headerIcon={<AccountBalanceWallet fontSize="small" />}
+            footer={
+              dueAmount > 0 ? (
+                <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
+                  <Button variant="contained" color="warning" fullWidth onClick={handlePayDue} sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}>
+                    Pay total due
+                  </Button>
+                </CardActions>
+              ) : undefined
+            }
+          >
+            <Typography variant="h4" fontWeight={800} color="warning.dark" sx={{ letterSpacing: "-0.02em" }}>
+              ₹{dueAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Typography>
+            {dueSummary && dueSummary.unpaid_bills?.length > 0 && (
+              <Box component="ul" sx={{ m: 0, mt: 2, pl: 2 }}>
+                {dueSummary.unpaid_bills.slice(0, 5).map((b) => (
+                  <Typography key={b.uuid} component="li" variant="body2" sx={{ mb: 0.75, color: "text.secondary" }}>
+                    {b.month} {b.year}: ₹{Number(b.amount).toFixed(2)}{" "}
+                    <Link to={`/bill/${b.uuid}`} style={{ fontWeight: 700, color: "inherit" }}>Print bill</Link>
+                  </Typography>
+                ))}
+                {dueSummary.unpaid_bills.length > 5 && (
+                  <Typography variant="caption" color="text.secondary">…and more on the Consumption page</Typography>
+                )}
+              </Box>
+            )}
+          </DashboardPanel>
+
+          <DashboardPanel
+            accent="info"
+            title="Billing overview"
+            subheader="Counts from your consumption records"
+            headerIcon={<WaterDrop fontSize="small" />}
+          >
+            <DashboardMetricRow label="Total records" value={consumptionData.length} />
+            <DashboardMetricRow label="Paid bills" value={consumptionData.filter((c) => c.status === "PAID").length} />
+            <DashboardMetricRow label="Unpaid bills" value={consumptionData.filter((c) => c.status === "UNPAID").length} />
+          </DashboardPanel>
         </Box>
 
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2, mb: 3 }}>
-          <Card sx={{ borderRadius: 2, border: 1, borderColor: "grey.200" }}>
-            <CardHeader title="Consumption / month" subheader="Usage in liters (L) and amount (₹) by billing period" />
-            <CardContent sx={{ pt: 0 }}>
-              <Box sx={{ width: "100%", height: 280 }}>
-                {consumptionByMonth.length === 0 ? (
-                  <Typography color="text.secondary" textAlign="center" py={4}>No consumption data</Typography>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={consumptionByMonth} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
-                      <Tooltip formatter={(value: number, name: string) => [name === "liters" ? `${value} L` : `₹${value}`, name === "liters" ? "Liters" : "Amount"]} labelFormatter={(label) => label} />
-                      <Bar yAxisId="left" dataKey="liters" fill="#2196f3" name="liters" radius={[4, 4, 0, 0]} />
-                      <Bar yAxisId="right" dataKey="amount" fill="#4caf50" name="amount" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-          <Card sx={{ borderRadius: 2, border: 1, borderColor: "grey.200" }}>
-            <CardHeader title="Payments / month" subheader="Total payments (₹) by month" />
-            <CardContent sx={{ pt: 0 }}>
-              <Box sx={{ width: "100%", height: 280 }}>
-                {paymentsByMonth.length === 0 ? (
-                  <Typography color="text.secondary" textAlign="center" py={4}>No payment data</Typography>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={paymentsByMonth} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
-                      <Tooltip formatter={(value: number) => [`₹${value}`, "Amount"]} labelFormatter={(label) => label} />
-                      <Bar dataKey="amount" fill="#4caf50" name="amount" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2.5, mb: 3 }}>
+          <ConsumptionMonthCard
+            title="Consumption / month"
+            subheader="Usage in liters (L) and billed amount (₹) by billing period — hover bars for details"
+            data={consumptionByMonth}
+          />
+          <PaymentsMonthCard
+            title="Payments / month"
+            subheader="Total payments received (₹) per calendar month"
+            data={paymentsByMonth}
+          />
         </Box>
       <PaymentDialog
         open={qrData !== null}

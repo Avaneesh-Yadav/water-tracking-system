@@ -95,6 +95,11 @@
     @apply border-border;
   }
 
+  /* Keeps layout width stable when tab/page height toggles the vertical scrollbar (Windows classic scrollbars). */
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-background text-foreground;
   }

@@ -33,6 +33,13 @@ function getPaymentStatusByUserUuids(userUuids, callback) {
 
 exports.getAllUsers = (req, res) => {
     const q = (req.query.q || '').trim();
+    const roleParam = (req.query.role || '').trim().toUpperCase();
+    const statusParam = (req.query.status || '').trim().toUpperCase();
+    const filters = {};
+    if (q) filters.q = q;
+    if (roleParam === 'USER' || roleParam === 'ADMIN') filters.role = roleParam;
+    if (['ACTIVE', 'DELETED', 'REVOKE'].includes(statusParam)) filters.status = statusParam;
+
     const hasPagination = req.query.page != null || req.query.limit != null;
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 5));
@@ -51,8 +58,7 @@ exports.getAllUsers = (req, res) => {
     };
 
     if (!hasPagination) {
-        const fn = q ? (c) => User.getAllSearch(q, c) : User.getAll;
-        return fn((err, results) => {
+        return User.getAllWithFiltersNoPagination(filters, (err, results) => {
             if (err) return res.status(500).json({ message: 'Database error' });
             attachPaymentStatus(results, (errAttach, withStatus) => {
                 if (errAttach) return res.status(500).json({ message: 'Database error' });
@@ -64,8 +70,7 @@ exports.getAllUsers = (req, res) => {
     const onCount = (errCount, countRows) => {
         if (errCount) return res.status(500).json({ message: 'Database error' });
         const total = countRows[0]?.total || 0;
-        const fetch = q ? (c) => User.getAllSearchPaginated(q, page, limit, c) : (c) => User.getAllPaginated(page, limit, c);
-        fetch((err, results) => {
+        User.getAllPaginatedWithFilters(page, limit, filters, (err, results) => {
             if (err) return res.status(500).json({ message: 'Database error' });
             attachPaymentStatus(results, (errAttach, withStatus) => {
                 if (errAttach) return res.status(500).json({ message: 'Database error' });
@@ -73,8 +78,7 @@ exports.getAllUsers = (req, res) => {
             });
         });
     };
-    if (q) User.getSearchCount(q, onCount);
-    else User.getCount(onCount);
+    User.getCountWithFilters(filters, onCount);
 };
 
 exports.getUserById = (req, res) => {

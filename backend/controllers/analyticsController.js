@@ -90,3 +90,45 @@ exports.getCollectionEfficiency = (req, res) => {
     }
   );
 };
+
+// GET /admin/analytics/kpis — dashboard headline metrics
+exports.getKPIs = (req, res) => {
+  const run = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      pool.query(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+  Promise.all([
+    run(`SELECT COUNT(*) AS c FROM users WHERE UPPER(role) = 'USER' AND status = 'ACTIVE'`),
+    run(`SELECT COALESCE(SUM(amount), 0) AS s FROM water_consumption WHERE payment_status = 'UNPAID'`),
+    run(`SELECT COUNT(*) AS c FROM water_consumption WHERE payment_status = 'UNPAID'`),
+    run(
+      `SELECT COALESCE(SUM(amount), 0) AS s FROM payments
+       WHERE YEAR(paid_at) = YEAR(CURDATE()) AND MONTH(paid_at) = MONTH(CURDATE())`
+    ),
+    run(
+      `SELECT COUNT(*) AS c FROM payments
+       WHERE YEAR(paid_at) = YEAR(CURDATE()) AND MONTH(paid_at) = MONTH(CURDATE())`
+    ),
+    run(`SELECT COALESCE(SUM(consumption_liters), 0) AS l FROM water_consumption`),
+    run(`SELECT COUNT(*) AS c FROM water_consumption`),
+  ])
+    .then(([activeUsers, outstanding, unpaidBills, collMonth, payCountMonth, totalLiters, totalReads]) => {
+      res.json({
+        active_consumers: parseInt(activeUsers[0]?.c, 10) || 0,
+        total_outstanding: parseFloat(outstanding[0]?.s) || 0,
+        unpaid_bill_count: parseInt(unpaidBills[0]?.c, 10) || 0,
+        collected_this_month: parseFloat(collMonth[0]?.s) || 0,
+        payment_count_this_month: parseInt(payCountMonth[0]?.c, 10) || 0,
+        total_consumption_liters_recorded: parseFloat(totalLiters[0]?.l) || 0,
+        total_consumption_records: parseInt(totalReads[0]?.c, 10) || 0,
+      });
+    })
+    .catch((e) => {
+      console.error('getKPIs:', e);
+      res.status(500).json({ message: 'Failed to load KPIs' });
+    });
+};

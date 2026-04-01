@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Box,
   Card,
@@ -17,7 +17,8 @@ import {
   Skeleton,
   TablePagination,
 } from "@mui/material";
-import { Link } from "react-router-dom";
+import Description from "@mui/icons-material/Description";
+import MeterPhotoThumb from "@/components/MeterPhotoThumb";
 import ArrowUpward from "@mui/icons-material/ArrowUpward";
 import ArrowDownward from "@mui/icons-material/ArrowDownward";
 import SwapVert from "@mui/icons-material/SwapVert";
@@ -36,7 +37,7 @@ type AdminConsumptionSortField = "full_name" | "month" | "consumption_liters" | 
 const formatDate = (value?: string) =>
   value ? new Date(value).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
-const ROWS_PER_PAGE_OPTIONS = [5, 10, 25, 50];
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50];
 
 const ConsumptionPage = () => {
   const navigate = useNavigate();
@@ -46,9 +47,9 @@ const ConsumptionPage = () => {
   const [consumption, setConsumption] = useState<ConsumptionRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [adminPage, setAdminPage] = useState(0);
-  const [adminRowsPerPage, setAdminRowsPerPage] = useState(5);
+  const [adminRowsPerPage, setAdminRowsPerPage] = useState(10);
   const [adminTotal, setAdminTotal] = useState(0);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminSortField, setAdminSortField] = useState<AdminConsumptionSortField>("created_at");
@@ -203,6 +204,8 @@ const ConsumptionPage = () => {
                     <TableCell>Consumption (L)</TableCell>
                     <TableCell>Amount (₹)</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell align="center">Photo</TableCell>
+                    <TableCell>Bill</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -213,6 +216,8 @@ const ConsumptionPage = () => {
                       <TableCell><Skeleton variant="text" width={50} height={24} /></TableCell>
                       <TableCell><Skeleton variant="text" width={48} height={24} /></TableCell>
                       <TableCell><Skeleton variant="rounded" width={56} height={24} /></TableCell>
+                      <TableCell align="center"><Skeleton variant="rounded" width={36} height={36} sx={{ mx: "auto" }} /></TableCell>
+                      <TableCell><Skeleton variant="text" width={40} height={24} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -293,7 +298,7 @@ const ConsumptionPage = () => {
         <Card variant="outlined">
           <CardHeader
             title="All consumption records"
-            subheader="User name links to user page — paginated (5–50 per page)"
+            subheader="User name links to user page — paginated (10–50 per page)"
           />
           <CardContent sx={{ pt: 0 }}>
             <TableContainer component={Paper} variant="outlined">
@@ -318,9 +323,13 @@ const ConsumptionPage = () => {
                   <TableRow>
                     <TableCell onClick={() => handleAdminSort("full_name")} sx={{ cursor: "pointer" }}>User name <AdminSortIcon field="full_name" /></TableCell>
                     <TableCell onClick={() => handleAdminSort("month")} sx={{ cursor: "pointer" }}>Month <AdminSortIcon field="month" /></TableCell>
+                    <TableCell align="right">Prev</TableCell>
+                    <TableCell align="right">Curr</TableCell>
                     <TableCell align="right" onClick={() => handleAdminSort("consumption_liters")} sx={{ cursor: "pointer" }}>Consumption (L) <AdminSortIcon field="consumption_liters" /></TableCell>
                     <TableCell onClick={() => handleAdminSort("created_at")} sx={{ cursor: "pointer" }}>Created at <AdminSortIcon field="created_at" /></TableCell>
                     <TableCell onClick={() => handleAdminSort("updated_at")} sx={{ cursor: "pointer" }}>Updated at <AdminSortIcon field="updated_at" /></TableCell>
+                    <TableCell align="center">Photo</TableCell>
+                    <TableCell>Bill</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -330,15 +339,19 @@ const ConsumptionPage = () => {
                         <TableRow key={i}>
                           <TableCell><Skeleton variant="text" width="80%" height={24} /></TableCell>
                           <TableCell><Skeleton variant="text" width={70} height={24} /></TableCell>
+                          <TableCell align="right"><Skeleton variant="text" width={40} height={24} sx={{ ml: "auto" }} /></TableCell>
+                          <TableCell align="right"><Skeleton variant="text" width={40} height={24} sx={{ ml: "auto" }} /></TableCell>
                           <TableCell align="right"><Skeleton variant="text" width={48} height={24} sx={{ ml: "auto" }} /></TableCell>
                           <TableCell><Skeleton variant="text" width={100} height={24} /></TableCell>
                           <TableCell><Skeleton variant="text" width={100} height={24} /></TableCell>
+                          <TableCell align="center"><Skeleton variant="rounded" width={36} height={36} sx={{ mx: "auto" }} /></TableCell>
+                          <TableCell><Skeleton variant="text" width={48} height={24} /></TableCell>
                         </TableRow>
                       ))}
                     </>
                   ) : sortedAdminConsumptionList.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={9} align="center">
                         No consumption records found
                       </TableCell>
                     </TableRow>
@@ -355,9 +368,19 @@ const ConsumptionPage = () => {
                           </Link>
                         </TableCell>
                         <TableCell>{`${r.month} ${r.year}`}</TableCell>
+                        <TableCell align="right">{r.previous_meter_reading != null ? Number(r.previous_meter_reading) : "—"}</TableCell>
+                        <TableCell align="right">{r.current_meter_reading != null ? Number(r.current_meter_reading) : "—"}</TableCell>
                         <TableCell align="right">{Number(r.consumption_liters) ?? "—"}</TableCell>
                         <TableCell>{formatDate(r.created_at)}</TableCell>
                         <TableCell>{formatDate(r.updated_at)}</TableCell>
+                        <TableCell align="center">
+                          <MeterPhotoThumb path={r.meter_photo_path} size={36} />
+                        </TableCell>
+                        <TableCell>
+                          <Link to={`/bill/${r.uuid}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                            <Description sx={{ fontSize: 18 }} /> Print
+                          </Link>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -408,7 +431,7 @@ const ConsumptionPage = () => {
       <Card sx={{ mt: 2 }} variant="outlined">
         <CardHeader
           title="Water Consumption History"
-          subheader="Latest records per page (5–50)"
+          subheader="Latest records per page (10–50)"
         />
         <CardContent sx={{ pt: 0 }}>
           <TableContainer component={Paper} variant="outlined">
@@ -436,6 +459,8 @@ const ConsumptionPage = () => {
                   <TableCell>Consumption (L)</TableCell>
                   <TableCell>Amount (₹)</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell align="center">Photo</TableCell>
+                  <TableCell>Bill</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -448,12 +473,14 @@ const ConsumptionPage = () => {
                         <TableCell><Skeleton variant="text" width={50} height={24} /></TableCell>
                         <TableCell><Skeleton variant="text" width={48} height={24} /></TableCell>
                         <TableCell><Skeleton variant="rounded" width={56} height={24} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="rounded" width={36} height={36} sx={{ mx: "auto" }} /></TableCell>
+                        <TableCell><Skeleton variant="text" width={40} height={24} /></TableCell>
                       </TableRow>
                     ))}
                   </>
                 ) : consumption.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>
                       No consumption records
                     </TableCell>
                   </TableRow>
@@ -461,7 +488,11 @@ const ConsumptionPage = () => {
                   consumption.map((r) => (
                     <TableRow key={r.uuid}>
                       <TableCell>{`${r.month} ${r.year}`}</TableCell>
-                      <TableCell>{Number(r.consumption_liters) || 0}</TableCell>
+                      <TableCell>
+                        {r.current_meter_reading != null
+                          ? Number(r.current_meter_reading)
+                          : Number(r.consumption_liters) || 0}
+                      </TableCell>
                       <TableCell>{Number(r.consumption_liters) || 0}</TableCell>
                       <TableCell>₹{Number(r.amount) || 0}</TableCell>
                       <TableCell
@@ -474,6 +505,14 @@ const ConsumptionPage = () => {
                         }}
                       >
                         {r.status === "PAID" ? "Paid" : "Unpaid"}
+                      </TableCell>
+                      <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                        <MeterPhotoThumb path={r.meter_photo_path} size={36} />
+                      </TableCell>
+                      <TableCell>
+                        <Link to={`/bill/${r.uuid}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }} onClick={(e) => e.stopPropagation()}>
+                          <Description sx={{ fontSize: 18 }} /> Print
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))

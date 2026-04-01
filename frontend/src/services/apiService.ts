@@ -39,6 +39,10 @@ export interface ConsumptionRecord {
   created_at: string;
   updated_at?: string;
   full_name?: string;
+  connection_id?: string;
+  previous_meter_reading?: number | null;
+  current_meter_reading?: number | null;
+  meter_photo_path?: string | null;
 }
 
 export interface PaymentRecord {
@@ -54,6 +58,7 @@ export interface PaymentRecord {
   month?: string;
   year?: number;
   full_name?: string;
+  connection_id?: string;
 }
 
 export interface QRData {
@@ -96,13 +101,21 @@ export interface NotificationRecord {
   is_paid?: boolean;
 }
 
-// User APIs. Optional q = search; optional page, limit = pagination (returns { users, total, page, limit }). Without page/limit returns User[].
-export const getAllUsers = async (opts?: { q?: string; page?: number; limit?: number }): Promise<User[] | { users: User[]; total: number; page: number; limit: number }> => {
+// User APIs. Optional q, role (USER|ADMIN), status (ACTIVE|DELETED|REVOKE); page, limit for pagination.
+export const getAllUsers = async (opts?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+  role?: string;
+  status?: string;
+}): Promise<User[] | { users: User[]; total: number; page: number; limit: number }> => {
   try {
     const params: Record<string, string | number> = {};
     if (opts?.q?.trim()) params.q = opts.q.trim();
     if (opts?.page != null) params.page = opts.page;
     if (opts?.limit != null) params.limit = opts.limit;
+    if (opts?.role?.trim()) params.role = opts.role.trim().toUpperCase();
+    if (opts?.status?.trim()) params.status = opts.status.trim().toUpperCase();
     const response = await axiosInstance.get('/users', { params });
     const data = response.data;
     if (data?.total != null && Array.isArray(data.users)) return data;
@@ -147,6 +160,20 @@ export const deleteUserByUuid = async (uuid: string): Promise<any> => {
     return response.data;
   } catch (error) {
     handleError(error, "Delete user failed");
+    throw error;
+  }
+};
+
+/** Admin: PUT /users/:uuid — fullName, mobileNumber, role, address, status */
+export const updateUserByUuid = async (
+  uuid: string,
+  data: { fullName: string; mobileNumber: string; role: string; address: string; status: string }
+): Promise<{ message?: string }> => {
+  try {
+    const response = await axiosInstance.put<{ message?: string }>(`/users/${uuid}`, data);
+    return response.data;
+  } catch (error) {
+    handleError(error, "Failed to update user");
     throw error;
   }
 };
@@ -219,6 +246,35 @@ export const getDueAmount = async (): Promise<number> => {
   }
 };
 
+export type DueSummary = {
+  due_amount: number;
+  unpaid_bill_count: number;
+  unpaid_bills: Array<{
+    uuid: string;
+    month: string;
+    year: number;
+    consumption_liters: number;
+    amount: number;
+    rate_per_liter: number;
+    payment_status: string;
+    previous_meter_reading?: number | null;
+    current_meter_reading?: number | null;
+  }>;
+  bill_due_day: number;
+  currency_display: string;
+  organization_name: string;
+};
+
+export const getDueSummary = async (): Promise<DueSummary | null> => {
+  try {
+    const response = await axiosInstance.get('/consumption/due-summary');
+    return response.data as DueSummary;
+  } catch (error) {
+    handleError(error, 'Failed to fetch due summary');
+    return null;
+  }
+};
+
 export const getUnpaidBills = async (): Promise<ConsumptionRecord[]> => {
   try {
     const response = await axiosInstance.get('/consumption/unpaid');
@@ -234,8 +290,10 @@ export const addConsumption = async (data: {
   user_uuid: string;
   month: string;
   year: number;
-  consumption_liters: number;
+  consumption_liters?: number;
   rate_per_liter?: number;
+  previous_meter_reading?: number;
+  current_meter_reading?: number;
 }): Promise<any> => {
   try {
     const response = await axiosInstance.post('/admin/consumption', data);
@@ -246,6 +304,15 @@ export const addConsumption = async (data: {
   }
 };
 
+export const uploadConsumptionMeterPhoto = async (consumptionUuid: string, file: File): Promise<{ meter_photo_path?: string }> => {
+  const formData = new FormData();
+  formData.append('meter_photo', file);
+  const response = await axiosInstance.post(`/admin/meter-photo/${encodeURIComponent(consumptionUuid)}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
 export const getConsumptionByUser = async (user_uuid: string): Promise<ConsumptionRecord[]> => {
   try {
     const response = await axiosInstance.get(`/admin/consumption/${user_uuid}`);
@@ -253,6 +320,28 @@ export const getConsumptionByUser = async (user_uuid: string): Promise<Consumpti
   } catch (error) {
     handleError(error, 'Failed to fetch consumption history');
     return [];
+  }
+};
+
+/** Admin: all unpaid consumption rows with full_name, connection_id, etc. */
+export const getAllUnpaidConsumptionAdmin = async (): Promise<ConsumptionRecord[]> => {
+  try {
+    const response = await axiosInstance.get<{ bills?: ConsumptionRecord[] }>('/admin/consumption/unpaid-all');
+    return response.data.bills || [];
+  } catch (error) {
+    handleError(error, 'Failed to fetch unpaid bills');
+    throw error;
+  }
+};
+
+/** Admin: payments posted in the current calendar month */
+export const getPaymentsThisMonthAdmin = async (): Promise<PaymentRecord[]> => {
+  try {
+    const response = await axiosInstance.get<{ payments?: PaymentRecord[] }>('/admin/payments/this-month');
+    return response.data.payments || [];
+  } catch (error) {
+    handleError(error, 'Failed to fetch monthly payments');
+    throw error;
   }
 };
 
@@ -616,9 +705,52 @@ export type BillData = {
   payment_status: string;
   organization_name: string;
   bill_due_day: number;
+  previous_meter_reading?: number | null;
+  current_meter_reading?: number | null;
+  meter_photo_path?: string | null;
 };
 export const getBillData = async (consumptionUuid: string): Promise<BillData> => {
   const response = await axiosInstance.get(`/user/bill/${encodeURIComponent(consumptionUuid)}`);
   return response.data;
+};
+
+/** User or admin bill payload for print view */
+export const getBillForPrint = async (consumptionUuid: string, asAdmin: boolean): Promise<BillData> => {
+  const path = asAdmin
+    ? `/admin/bill/${encodeURIComponent(consumptionUuid)}`
+    : `/user/bill/${encodeURIComponent(consumptionUuid)}`;
+  const response = await axiosInstance.get(path);
+  return response.data;
+};
+
+export type AdminKPIs = {
+  active_consumers: number;
+  total_outstanding: number;
+  unpaid_bill_count: number;
+  collected_this_month: number;
+  payment_count_this_month: number;
+  total_consumption_liters_recorded: number;
+  total_consumption_records: number;
+};
+
+export const getAdminKPIs = async (): Promise<AdminKPIs | null> => {
+  try {
+    const response = await axiosInstance.get('/admin/analytics/kpis');
+    return response.data as AdminKPIs;
+  } catch (error) {
+    handleError(error, 'Failed to load KPIs');
+    return null;
+  }
+};
+
+export const exportConsumersExcel = async (): Promise<void> => {
+  const response = await axiosInstance.get('/admin/export/consumers', { responseType: 'blob' });
+  const blob = response.data as Blob;
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `consumers-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.click();
+  window.URL.revokeObjectURL(url);
 };
 

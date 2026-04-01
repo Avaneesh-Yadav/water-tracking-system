@@ -269,6 +269,17 @@ exports.generatePaymentQR = async (req, res) => {
     }
 };
 
+// Payments in current calendar month with user + bill context (Admin dashboard dialog)
+exports.getPaymentsThisMonthAdmin = (req, res) => {
+    Payment.getCurrentMonthAll((err, rows) => {
+        if (err) {
+            console.error('getPaymentsThisMonthAdmin:', err);
+            return res.status(500).json({ message: 'Failed to fetch payments' });
+        }
+        res.status(200).json({ message: 'Payments fetched', payments: rows || [] });
+    });
+};
+
 // Get all payments (Admin only). Query: q (search), page, limit (default 5, max 50). Without page/limit returns plain array.
 exports.getAllPayments = async (req, res) => {
     try {

@@ -13,7 +13,10 @@ import {
 } from "@mui/material";
 
 type Payment = {
+  /** Shown in Transaction ID column */
   id: string;
+  /** Stable row key from payment UUID */
+  rowKey?: string;
   date: string;
   month: string;
   amount: number;
@@ -41,8 +44,10 @@ const PaymentHistory = ({ data }: { data: Payment[] }) => {
             </TableHead>
             <TableBody>
               {data.length > 0 ? (
-                data.map((payment) => (
-                  <TableRow key={payment.id}>
+                data.map((payment, index) => (
+                  <TableRow
+                    key={payment.rowKey || `${payment.id}-${payment.date}-${payment.month}-${index}`}
+                  >
                     <TableCell>{payment.id}</TableCell>
                     <TableCell>{payment.date}</TableCell>
                     <TableCell>{payment.month}</TableCell>

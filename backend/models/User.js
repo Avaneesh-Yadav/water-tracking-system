@@ -63,6 +63,54 @@ class User {
         pool.query('SELECT COUNT(*) as total FROM users', callback);
     }
 
+    /** Optional filters: q (name/mobile/connection), role (USER|ADMIN), status (ACTIVE|DELETED|REVOKE) */
+    static _userFilterClause(filters = {}) {
+        const conditions = [];
+        const params = [];
+        if (filters.q && String(filters.q).trim()) {
+            const t = `%${String(filters.q).trim()}%`;
+            conditions.push('(full_name LIKE ? OR mobile_number LIKE ? OR connection_id LIKE ?)');
+            params.push(t, t, t);
+        }
+        if (filters.role) {
+            const r = String(filters.role).toUpperCase();
+            if (r === 'USER' || r === 'ADMIN') {
+                conditions.push('UPPER(TRIM(role)) = ?');
+                params.push(r);
+            }
+        }
+        if (filters.status) {
+            const s = String(filters.status).toUpperCase();
+            if (['ACTIVE', 'DELETED', 'REVOKE'].includes(s)) {
+                conditions.push('status = ?');
+                params.push(s);
+            }
+        }
+        const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+        return { where, params };
+    }
+
+    static getCountWithFilters(filters, callback) {
+        const { where, params } = this._userFilterClause(filters);
+        pool.query(`SELECT COUNT(*) as total FROM users ${where}`, params, callback);
+    }
+
+    static getAllPaginatedWithFilters(page, limit, filters, callback) {
+        const { where, params } = this._userFilterClause(filters);
+        const offset = Math.max(0, (Math.max(1, page) - 1) * limit);
+        const lim = Math.min(50, Math.max(1, limit));
+        pool.query(
+            `SELECT ${userColumns} FROM users ${where} ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+            [...params, lim, offset],
+            callback
+        );
+    }
+
+    static getAllWithFiltersNoPagination(filters, callback) {
+        const { where, params } = this._userFilterClause(filters);
+        pool.query(`SELECT ${userColumns} FROM users ${where} ORDER BY updated_at DESC`, params, callback);
+    }
+
     static getAllSearchPaginated(q, page, limit, callback) {
         if (!q || typeof q !== 'string' || !q.trim()) return this.getAllPaginated(page, limit, callback);
         const term = `%${q.trim()}%`;

@@ -20,6 +20,7 @@ import Home from "@mui/icons-material/Home";
 import Person from "@mui/icons-material/Person";
 import PersonAdd from "@mui/icons-material/PersonAdd";
 import People from "@mui/icons-material/People";
+import BadgeOutlined from "@mui/icons-material/BadgeOutlined";
 import WaterDrop from "@mui/icons-material/WaterDrop";
 import Payment from "@mui/icons-material/Payment";
 import Settings from "@mui/icons-material/Settings";
@@ -101,6 +102,7 @@ const Sidebar = ({
   const mainItems = [
     { to: "/dashboard", label: "Dashboard", icon: <Home /> },
     ...(isAdmin ? [{ to: "/consumers", label: "Consumers", icon: <People /> }] : []),
+    ...(isAdmin ? [{ to: "/employees", label: "Employee(s)", icon: <BadgeOutlined /> }] : []),
     ...(isAdmin ? [{ to: "/reports", label: "Reports", icon: <Assessment /> }] : []),
     ...(isAdmin ? [{ to: "/bulk", label: "Bulk ops", icon: <CloudUpload /> }] : []),
     { to: "/consumption", label: "Consumption", icon: <WaterDrop /> },

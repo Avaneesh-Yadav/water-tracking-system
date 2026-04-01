@@ -35,22 +35,24 @@ import ArrowDownward from "@mui/icons-material/ArrowDownward";
 import SwapVert from "@mui/icons-material/SwapVert";
 import { getAllUsers, deleteUserByUuid, getAdminUnreadPaymentNotificationCountByUser, markAdminPaymentNotificationsReadByUser } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import CreateUserDialog from "@/components/CreateUserDialog";
 import BulkImportDialog from "@/components/BulkImportDialog";
 
-const ROWS_PER_PAGE_OPTIONS = [5, 10, 25, 50];
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50];
 
 type SortField = "full_name" | "mobile_number" | "connection_id" | "role" | "created_at" | "updated_at" | "payment_status";
 type SortOrder = "asc" | "desc";
 
 const ConsumersPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isEmployees = location.pathname.startsWith("/employees");
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<SortField>("updated_at");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -63,7 +65,13 @@ const ConsumersPage = () => {
   const fetchUsers = useCallback(async (pageNum: number, limit: number, q: string) => {
     setLoading(true);
     try {
-      const response = await getAllUsers({ page: pageNum + 1, limit, q: q.trim() || undefined });
+      const response = await getAllUsers({
+        page: pageNum + 1,
+        limit,
+        q: q.trim() || undefined,
+        role: isEmployees ? "ADMIN" : "USER",
+        status: isEmployees ? undefined : "ACTIVE",
+      });
       if (Array.isArray(response)) {
         setUsers(response);
         setTotal(response.length);
@@ -82,11 +90,17 @@ const ConsumersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isEmployees]);
 
   useEffect(() => {
     setPage(0);
-  }, [searchTerm]);
+  }, [searchTerm, isEmployees]);
+
+  useEffect(() => {
+    if (isEmployees && (sortField === "connection_id" || sortField === "role" || sortField === "payment_status")) {
+      setSortField("updated_at");
+    }
+  }, [isEmployees, sortField]);
 
   useEffect(() => {
     fetchUsers(page, rowsPerPage, searchTerm);
@@ -95,7 +109,7 @@ const ConsumersPage = () => {
   useEffect(() => {
     let cancelled = false;
     const loadCounts = async () => {
-      if (currentRole !== "ADMIN") return;
+      if (currentRole !== "ADMIN" || isEmployees) return;
       const uuids = users.map((u) => u.uuid).filter(Boolean);
       if (uuids.length === 0) return;
       try {
@@ -116,7 +130,9 @@ const ConsumersPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [users, currentRole]);
+  }, [users, currentRole, isEmployees]);
+
+  const tableColCount = isEmployees ? 5 : 9;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -172,13 +188,21 @@ const ConsumersPage = () => {
   return (
     <Box sx={{ width: "100%" }}>
       <Typography variant="h5" fontWeight={600} sx={{ mb: 2, color: "text.primary" }}>
-        Consumers
+        {isEmployees ? "Employee(s)" : "Consumers"}
       </Typography>
 
       <Card sx={{ borderRadius: 2 }}>
         <CardHeader
-          title={loading ? <Skeleton variant="text" width={160} height={32} /> : "User Management"}
-          subheader={loading ? <Skeleton variant="text" width={220} height={20} sx={{ mt: 0.5 }} /> : "View and manage all registered users"}
+          title={loading ? <Skeleton variant="text" width={160} height={32} /> : isEmployees ? "Staff accounts" : "Consumer accounts"}
+          subheader={
+            loading ? (
+              <Skeleton variant="text" width={220} height={20} sx={{ mt: 0.5 }} />
+            ) : isEmployees ? (
+              "Administrator and staff logins (role ADMIN). Same tools as consumers: search, sort, open profile."
+            ) : (
+              "Active consumer accounts only (role USER, status ACTIVE). Revoked or inactive accounts are hidden here."
+            )
+          }
           action={
             loading ? (
               <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
@@ -190,7 +214,7 @@ const ConsumersPage = () => {
               <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 1, alignItems: "center" }}>
                 <TextField
                   size="small"
-                  placeholder="Search by name, mobile, or ID"
+                  placeholder={isEmployees ? "Search by name or mobile" : "Search by name, mobile, or ID"}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   InputProps={{
@@ -200,7 +224,7 @@ const ConsumersPage = () => {
                     sx: { width: { xs: "100%", sm: 320 } },
                   }}
                 />
-                <BulkImportDialog onImportComplete={() => fetchUsers(page, rowsPerPage, searchTerm)} />
+                {!isEmployees && <BulkImportDialog onImportComplete={() => fetchUsers(page, rowsPerPage, searchTerm)} />}
                 <CreateUserDialog onUserCreated={() => fetchUsers(page, rowsPerPage, searchTerm)} />
               </Box>
             )
@@ -229,10 +253,14 @@ const ConsumersPage = () => {
                 <TableRow>
                   <TableCell onClick={() => handleSort("full_name")} sx={{ cursor: "pointer" }}>Name <SortIcon field="full_name" /></TableCell>
                   <TableCell onClick={() => handleSort("mobile_number")} sx={{ cursor: "pointer" }}>Mobile <SortIcon field="mobile_number" /></TableCell>
-                  <TableCell onClick={() => handleSort("connection_id")} sx={{ cursor: "pointer" }}>Connection ID <SortIcon field="connection_id" /></TableCell>
-                  <TableCell onClick={() => handleSort("role")} sx={{ cursor: "pointer" }}>Role <SortIcon field="role" /></TableCell>
-                  <TableCell>Due</TableCell>
-                  <TableCell onClick={() => handleSort("payment_status")} sx={{ cursor: "pointer" }}>Status <SortIcon field="payment_status" /></TableCell>
+                  {!isEmployees && (
+                    <>
+                      <TableCell onClick={() => handleSort("connection_id")} sx={{ cursor: "pointer" }}>Connection ID <SortIcon field="connection_id" /></TableCell>
+                      <TableCell onClick={() => handleSort("role")} sx={{ cursor: "pointer" }}>Role <SortIcon field="role" /></TableCell>
+                      <TableCell>Due</TableCell>
+                      <TableCell onClick={() => handleSort("payment_status")} sx={{ cursor: "pointer" }}>Status <SortIcon field="payment_status" /></TableCell>
+                    </>
+                  )}
                   <TableCell onClick={() => handleSort("created_at")} sx={{ cursor: "pointer" }}>Created <SortIcon field="created_at" /></TableCell>
                   <TableCell onClick={() => handleSort("updated_at")} sx={{ cursor: "pointer" }}>Updated <SortIcon field="updated_at" /></TableCell>
                   <TableCell align="right">Action</TableCell>
@@ -245,10 +273,14 @@ const ConsumersPage = () => {
                       <TableRow key={i}>
                         <TableCell><Skeleton variant="text" width="80%" height={24} /></TableCell>
                         <TableCell><Skeleton variant="text" width={100} height={24} /></TableCell>
-                        <TableCell><Skeleton variant="text" width={90} height={24} /></TableCell>
-                        <TableCell><Skeleton variant="rounded" width={56} height={24} /></TableCell>
-                        <TableCell><Skeleton variant="text" width={48} height={24} /></TableCell>
-                        <TableCell><Skeleton variant="rounded" width={70} height={24} /></TableCell>
+                        {!isEmployees && (
+                          <>
+                            <TableCell><Skeleton variant="text" width={90} height={24} /></TableCell>
+                            <TableCell><Skeleton variant="rounded" width={56} height={24} /></TableCell>
+                            <TableCell><Skeleton variant="text" width={48} height={24} /></TableCell>
+                            <TableCell><Skeleton variant="rounded" width={70} height={24} /></TableCell>
+                          </>
+                        )}
                         <TableCell><Skeleton variant="text" width={80} height={24} /></TableCell>
                         <TableCell><Skeleton variant="text" width={80} height={24} /></TableCell>
                         <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: "auto" }} /></TableCell>
@@ -257,7 +289,7 @@ const ConsumersPage = () => {
                   </>
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 4, color: "text.secondary" }}>No users found.</TableCell>
+                    <TableCell colSpan={tableColCount} align="center" sx={{ py: 4, color: "text.secondary" }}>No users found.</TableCell>
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => (
@@ -310,18 +342,22 @@ const ConsumersPage = () => {
                         )}
                       </TableCell>
                       <TableCell>{user.mobile_number}</TableCell>
-                      <TableCell>{user.connection_id}</TableCell>
-                      <TableCell>
-                        <Chip size="small" label={user.role} color={user.role === "ADMIN" ? "secondary" : "primary"} />
-                      </TableCell>
-                      <TableCell sx={{ color: "error.main", fontWeight: 500 }}>₹{user.dueAmount || 0}</TableCell>
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          label={user.payment_status}
-                          color={user.payment_status === "COMPLETED" ? "success" : user.payment_status === "PENDING" ? "warning" : "error"}
-                        />
-                      </TableCell>
+                      {!isEmployees && (
+                        <>
+                          <TableCell>{user.connection_id}</TableCell>
+                          <TableCell>
+                            <Chip size="small" label={user.role} color={user.role === "ADMIN" ? "secondary" : "primary"} />
+                          </TableCell>
+                          <TableCell sx={{ color: "error.main", fontWeight: 500 }}>₹{user.dueAmount || 0}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={user.payment_status}
+                              color={user.payment_status === "COMPLETED" ? "success" : user.payment_status === "PENDING" ? "warning" : "error"}
+                            />
+                          </TableCell>
+                        </>
+                      )}
                       <TableCell sx={{ fontSize: "0.875rem" }}>
                         {new Date(user.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                       </TableCell>

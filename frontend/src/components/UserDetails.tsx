@@ -25,7 +25,7 @@ import LocationOn from "@mui/icons-material/LocationOn";
 import { toast } from "@/hooks/use-toast";
 import ConsumptionHistory from "./ConsumptionHistory";
 import PaymentHistory from "./PaymentHistory";
-import { getUserByUUID, addConsumption, getConsumptionByUser, getPaymentHistoryByUser } from "@/services/apiService";
+import { getUserByUUID, addConsumption, uploadConsumptionMeterPhoto, getConsumptionByUser, getPaymentHistoryByUser } from "@/services/apiService";
 import type { ConsumptionRecord } from "@/services/apiService";
 
 type UserProfile = {
@@ -65,6 +65,10 @@ type InsightCard = { icon: React.ElementType; label: string; value: string; meta
 const UserDetails = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [newReading, setNewReading] = useState("");
+  const [prevReading, setPrevReading] = useState("");
+  const [currReading, setCurrReading] = useState("");
+  const [meterPhoto, setMeterPhoto] = useState<File | null>(null);
+  const meterPhotoInputRef = useRef<HTMLInputElement>(null);
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [consumptionData, setConsumptionData] = useState<any[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
@@ -74,20 +78,24 @@ const UserDetails = () => {
   const { uuid } = useParams();
   const tabsCardRef = useRef<HTMLDivElement>(null);
 
-  const mapConsumptionToTable = (records: ConsumptionRecord[]): { id?: string; month: string; reading: number; consumption: number; amount: number; status: string }[] => {
+  const mapConsumptionToTable = (records: ConsumptionRecord[]): { id?: string; month: string; reading: number; prevReading?: number; currReading?: number; consumption: number; amount: number; status: string; meter_photo_path?: string | null }[] => {
     return records.map((r) => ({
       id: r.uuid,
       month: `${r.month} ${r.year}`,
-      reading: Number(r.consumption_liters) || 0,
+      reading: r.current_meter_reading != null ? Number(r.current_meter_reading) : Number(r.consumption_liters) || 0,
+      prevReading: r.previous_meter_reading != null ? Number(r.previous_meter_reading) : undefined,
+      currReading: r.current_meter_reading != null ? Number(r.current_meter_reading) : undefined,
       consumption: Number(r.consumption_liters) || 0,
       amount: Number(r.amount) || 0,
       status: r.status === "PAID" ? "Paid" : "Unpaid",
+      meter_photo_path: r.meter_photo_path,
     }));
   };
 
-  const mapPaymentHistoryForDisplay = (payments: any[]): { id: string; date: string; month: string; amount: number; method: string }[] => {
-    return (payments || []).map((p) => ({
-      id: p.transaction_id ||p.uuid || "",
+  const mapPaymentHistoryForDisplay = (payments: any[]): { rowKey: string; id: string; date: string; month: string; amount: number; method: string }[] => {
+    return (payments || []).map((p, i) => ({
+      rowKey: p.uuid || `pay-${p.paid_at ?? ""}-${p.amount ?? ""}-${i}`,
+      id: p.transaction_id || p.uuid || "—",
       date: formatShortDate(p.paid_at),
       month: p.month && p.year != null ? `${p.month} ${p.year}` : "—",
       amount: p.amount ?? 0,
@@ -153,25 +161,58 @@ const UserDetails = () => {
   }, [uuid]);
 
   const handleAddReading = async () => {
-    const reading = Number(newReading);
-    if (!uuid || Number.isNaN(reading) || reading < 0) {
-      toast({ title: "Invalid reading", description: "Enter a valid meter reading (number ≥ 0).", variant: "destructive" });
+    if (!uuid) return;
+    const now = new Date();
+    const month = now.toLocaleString("en-IN", { month: "short" });
+    const year = now.getFullYear();
+
+    const prevN = prevReading.trim() === "" ? NaN : Number(prevReading);
+    const currN = currReading.trim() === "" ? NaN : Number(currReading);
+    const singleN = newReading.trim() === "" ? NaN : Number(newReading);
+
+    const usePair = !Number.isNaN(prevN) && !Number.isNaN(currN);
+    const useSingle = !usePair && !Number.isNaN(singleN) && singleN >= 0;
+
+    if (!usePair && !useSingle) {
+      toast({
+        title: "Invalid input",
+        description: "Enter either total consumption (L), or both previous and current meter readings.",
+        variant: "destructive",
+      });
       return;
     }
+
     setLogReadingLoading(true);
     try {
-      const now = new Date();
-      await addConsumption({
+      const payload: Parameters<typeof addConsumption>[0] = {
         user_uuid: uuid,
-        month: now.toLocaleString("en-IN", { month: "short" }),
-        year: now.getFullYear(),
-        consumption_liters: reading,
-      });
-      toast({ title: "Reading logged", description: "Meter reading recorded successfully." });
+        month,
+        year,
+      };
+      if (usePair) {
+        payload.previous_meter_reading = prevN;
+        payload.current_meter_reading = currN;
+      } else {
+        payload.consumption_liters = singleN;
+      }
+
+      const res = await addConsumption(payload);
+      const newUuid = res?.consumption?.uuid as string | undefined;
+      if (meterPhoto && newUuid) {
+        try {
+          await uploadConsumptionMeterPhoto(newUuid, meterPhoto);
+        } catch {
+          toast({ title: "Photo upload failed", description: "Reading was saved; upload the photo again from admin if needed.", variant: "destructive" });
+        }
+      }
+      toast({ title: "Reading logged", description: "Consumption recorded successfully." });
       setNewReading("");
+      setPrevReading("");
+      setCurrReading("");
+      setMeterPhoto(null);
+      if (meterPhotoInputRef.current) meterPhotoInputRef.current.value = "";
       await refreshConsumption();
-      // Billing summary (due amount) updates automatically — it's derived from consumptionData
-    } catch (err) {
+    } catch {
       toast({ title: "Error", description: "Failed to log reading.", variant: "destructive" });
     } finally {
       setLogReadingLoading(false);
@@ -299,19 +340,56 @@ const UserDetails = () => {
           <>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2, mb: 2 }}>
               <Card variant="outlined">
-                <CardHeader title="Record a new reading" subheader="Enter current meter reading (liters)." />
+                <CardHeader
+                  title="Record a new reading"
+                  subheader="Option A: total consumption (L). Option B: previous + current meter readings (consumption = current − previous). Optional photo."
+                />
                 <CardContent sx={{ pt: 0 }}>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                    Total consumption for period (liters)
+                  </Typography>
                   <TextField
                     fullWidth
                     type="number"
-                    label="Meter reading (L)"
-                    placeholder="e.g. 1250"
+                    label="Consumption (L) — if not using readings below"
+                    placeholder="e.g. 420"
                     value={newReading}
                     onChange={(e) => setNewReading(e.target.value)}
-                    inputProps={{ min: 0, step: 1 }}
+                    inputProps={{ min: 0, step: 0.01 }}
                     sx={{ mb: 2 }}
                     size="small"
                   />
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                    Or meter readings (prev → current)
+                  </Typography>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mb: 2 }}>
+                    <TextField
+                      type="number"
+                      label="Previous reading"
+                      value={prevReading}
+                      onChange={(e) => setPrevReading(e.target.value)}
+                      inputProps={{ step: 0.01 }}
+                      size="small"
+                    />
+                    <TextField
+                      type="number"
+                      label="Current reading"
+                      value={currReading}
+                      onChange={(e) => setCurrReading(e.target.value)}
+                      inputProps={{ step: 0.01 }}
+                      size="small"
+                    />
+                  </Box>
+                  <Button variant="outlined" component="label" fullWidth sx={{ mb: 2 }} size="small">
+                    {meterPhoto ? meterPhoto.name : "Optional meter photo (JPEG/PNG)"}
+                    <input
+                      ref={meterPhotoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      hidden
+                      onChange={(e) => setMeterPhoto(e.target.files?.[0] ?? null)}
+                    />
+                  </Button>
                   <Button variant="contained" fullWidth onClick={handleAddReading} disabled={logReadingLoading}>
                     {logReadingLoading ? "Logging…" : "Log reading"}
                   </Button>

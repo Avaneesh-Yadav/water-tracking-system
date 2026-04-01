@@ -91,6 +91,19 @@ class Payment {
         pool.query('SELECT COUNT(*) as total FROM payments', callback);
     }
 
+    /** Payments recorded in the current calendar month (server local / DB CURDATE) */
+    static getCurrentMonthAll(callback) {
+        pool.query(
+            `SELECT p.*, u.full_name, u.mobile_number, u.connection_id, wc.month, wc.year
+             FROM payments p
+             JOIN users u ON p.user_uuid = u.uuid
+             LEFT JOIN water_consumption wc ON p.consumption_uuid = wc.uuid
+             WHERE YEAR(p.paid_at) = YEAR(CURDATE()) AND MONTH(p.paid_at) = MONTH(CURDATE())
+             ORDER BY p.paid_at DESC`,
+            callback
+        );
+    }
+
     static getAllSearchPaginated(q, page, limit, callback) {
         if (!q || typeof q !== 'string' || !q.trim()) return this.getAllPaginated(page, limit, callback);
         const term = `%${q.trim()}%`;

@@ -138,6 +138,62 @@ exports.getBillData = (req, res) => {
             payment_status: wc.payment_status,
             organization_name,
             bill_due_day,
+            previous_meter_reading: wc.previous_meter_reading != null ? parseFloat(wc.previous_meter_reading) : null,
+            current_meter_reading: wc.current_meter_reading != null ? parseFloat(wc.current_meter_reading) : null,
+            meter_photo_path: wc.meter_photo_path || null,
+          });
+        }
+      );
+    }
+  );
+};
+
+// GET /admin/bill/:consumption_uuid — same payload as user bill (admin)
+exports.getBillDataAdmin = (req, res) => {
+  const { consumption_uuid } = req.params;
+  if (!consumption_uuid) return res.status(400).json({ message: 'consumption uuid required' });
+
+  pool.query(
+    `SELECT wc.*, u.connection_id, u.full_name, u.address, u.mobile_number
+     FROM water_consumption wc
+     JOIN users u ON wc.user_uuid = u.uuid
+     WHERE wc.uuid = ?`,
+    [consumption_uuid],
+    (err, rows) => {
+      if (err) {
+        console.error('getBillDataAdmin:', err);
+        return res.status(500).json({ message: 'Failed to load bill' });
+      }
+      if (!rows || !rows.length) return res.status(404).json({ message: 'Bill not found' });
+      const wc = rows[0];
+
+      pool.query(
+        `SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('organization_name', 'bill_due_day')`,
+        (sErr, sRows) => {
+          const map = {};
+          (sRows || []).forEach((r) => {
+            map[r.setting_key] = r.setting_value;
+          });
+          const organization_name = map.organization_name || 'Water Supply';
+          const bill_due_day = Math.min(28, Math.max(1, parseInt(map.bill_due_day, 10) || 10));
+
+          res.json({
+            consumption_uuid: wc.uuid,
+            connection_id: wc.connection_id,
+            full_name: wc.full_name,
+            address: wc.address,
+            mobile_number: wc.mobile_number,
+            month: wc.month,
+            year: wc.year,
+            consumption_liters: parseFloat(wc.consumption_liters) || 0,
+            rate_per_liter: parseFloat(wc.rate_per_liter) || 0,
+            amount: parseFloat(wc.amount) || 0,
+            payment_status: wc.payment_status,
+            organization_name,
+            bill_due_day,
+            previous_meter_reading: wc.previous_meter_reading != null ? parseFloat(wc.previous_meter_reading) : null,
+            current_meter_reading: wc.current_meter_reading != null ? parseFloat(wc.current_meter_reading) : null,
+            meter_photo_path: wc.meter_photo_path || null,
           });
         }
       );

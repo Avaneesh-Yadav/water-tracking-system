@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS water_consumption (
     month VARCHAR(20) NOT NULL,
     year INT NOT NULL,
     consumption_liters DECIMAL(12,2) NOT NULL,
+    previous_meter_reading DECIMAL(14,3) NULL DEFAULT NULL,
+    current_meter_reading DECIMAL(14,3) NULL DEFAULT NULL,
+    meter_photo_path VARCHAR(512) NULL DEFAULT NULL,
     rate_per_liter DECIMAL(10,2) NOT NULL DEFAULT 20.00,
     amount DECIMAL(12,2) NOT NULL,
     payment_status ENUM('PAID', 'UNPAID') NOT NULL DEFAULT 'UNPAID',
@@ -130,6 +133,11 @@ CREATE TABLE IF NOT EXISTS notifications (
     ON DELETE CASCADE
     ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+
+ALTER TABLE water_consumption
+  ADD COLUMN previous_meter_reading DECIMAL(14,3) NULL DEFAULT NULL,
+  ADD COLUMN current_meter_reading DECIMAL(14,3) NULL DEFAULT NULL,
+  ADD COLUMN meter_photo_path VARCHAR(512) NULL DEFAULT NULL;
 -- =============================================================================
 -- END – All models (users, water_consumption, payments, app_settings, audit_log)
 -- are now created with default data in app_settings.
