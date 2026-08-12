@@ -58,7 +58,13 @@ const EditUser = () => {
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3 }}>
               <TextField label="Name" value={formData.name} onChange={(e) => handleChange("name", e.target.value)} placeholder="Enter name" fullWidth />
-              <TextField label="Mobile Number" value={formData.mobile} readOnly fullWidth InputProps={{ readOnly: true }} sx={{ "& .MuiInputBase-input": { bgcolor: "grey.100" } }} />
+              <TextField
+                label="Mobile Number"
+                value={formData.mobile}
+                fullWidth
+                InputProps={{ readOnly: true }}
+                sx={{ "& .MuiInputBase-input": { bgcolor: "grey.100" } }}
+              />
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select value={formData.status} label="Status" onChange={(e) => handleChange("status", e.target.value)}>

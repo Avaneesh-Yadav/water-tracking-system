@@ -17,6 +17,7 @@ This creates:
 | `payments`         | Payment (uuid, user_uuid, consumption_uuid, amount, payment_method, transaction_id, upi_id, paid_at, created_at). |
 | `app_settings`     | Settings (setting_key, setting_value, description, updated_at) + default rows (rate_per_liter, payee_name, organization_name, support_email, support_phone, bill_due_day, currency_display, unit_label, upi_id). |
 | `audit_log`        | AuditLog (uuid, user_uuid, user_role, action, entity_type, entity_id, details, ip_address, created_at). |
+| `password_reset_otps` | Password reset OTP (mobile_number, otp, expiry, attempt_count, max_attempts, reset_key). |
 
 ---
 
@@ -26,7 +27,13 @@ Use these only if you already have tables and need to add or fix something.
 
 1. **001_audit_log.sql** – Creates only `audit_log` (if you don’t use 000_initial_full).
 
-2. **002_users_status_inactive.sql** – If bulk status update fails with "Data truncated for column 'status'", run this so `users.status` accepts INACTIVE:
+2. **003_password_reset_otps.sql** – Creates `password_reset_otps` for forgot-password OTP storage (expiry, max attempts, one row per mobile):
+
+   ```bash
+   mysql -u YOUR_USER -p YOUR_DATABASE < backend/db/migrations/003_password_reset_otps.sql
+   ```
+
+3. **002_users_status_inactive.sql** – If bulk status update fails with "Data truncated for column 'status'", run this so `users.status` accepts INACTIVE:
 
    ```bash
    mysql -u YOUR_USER -p YOUR_DATABASE < backend/db/migrations/002_users_status_inactive.sql
