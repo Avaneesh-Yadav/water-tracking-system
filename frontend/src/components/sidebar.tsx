@@ -48,8 +48,8 @@ const isSelected = (pathname: string, to: string, profileTo: string) => {
 export const sidebarDrawerWidth = DRAWER_WIDTH;
 export const sidebarCollapsedWidth = COLLAPSED_DRAWER_WIDTH;
 
-/** Nav drawer background – matches Layout AppBar */
-const NAV_BG = "#0d4f73";
+/** Nav drawer background – glass tint behind frosted UI */
+const NAV_BG = "rgba(255,255,255,0.11)";
 
 const Sidebar = ({
   open,
@@ -73,6 +73,8 @@ const Sidebar = ({
   const navHoverBg = isLight ? "rgba(56, 189, 248, 0.18)" : "rgba(255,255,255,0.08)";
   const navSelectedBg = isLight ? "rgba(56, 189, 248, 0.35)" : "primary.main";
   const navSelectedHoverBg = isLight ? "rgba(56, 189, 248, 0.5)" : "primary.dark";
+  const navTextDefault = isLight ? "rgba(13, 79, 115, 0.95)" : "rgba(248,250,252,0.95)";
+  const navTextSelected = isLight ? "rgba(13, 79, 115, 0.95)" : "rgba(248,250,252,0.95)";
 
   let profileTo = "/";
   let role: string = "USER";
@@ -83,7 +85,9 @@ const Sidebar = ({
       if (user?.uuid) profileTo = `/${user.uuid}`;
       role = (user?.role || "USER").toUpperCase();
     }
-  } catch {}
+  } catch {
+    /* ignore invalid JSON in localStorage */
+  }
 
   const handleLogout = async () => {
     await logoutService();
@@ -152,10 +156,16 @@ const Sidebar = ({
                 <WaterDrop sx={{ fontSize: 24, color: "primary.dark" }} />
               </Box>
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, color: "rgba(248,250,252,0.98)" }}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 700, lineHeight: 1.2, color: navTextDefault }}
+                >
                   AquaFlow
                 </Typography>
-                <Typography variant="caption" sx={{ color: "rgba(248,250,252,0.8)", lineHeight: 1.2, display: "block" }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: navTextDefault, lineHeight: 1.2, display: "block", opacity: 0.82 }}
+                >
                   Water Management System
                 </Typography>
               </Box>
@@ -174,7 +184,7 @@ const Sidebar = ({
                 borderRadius: 1.5,
                 bgcolor: isLight ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.12)",
                 border: "1px solid rgba(255,255,255,0.25)",
-                color: "rgba(248,250,252,0.95)",
+                color: navTextDefault,
                 "&:hover": {
                   bgcolor: isLight ? "rgba(56, 189, 248, 0.35)" : "rgba(255,255,255,0.18)",
                   borderColor: isLight ? "rgba(56, 189, 248, 0.5)" : "rgba(255,255,255,0.3)",
@@ -203,14 +213,14 @@ const Sidebar = ({
                 transition: "background-color 0.2s ease, box-shadow 0.2s ease",
                 "&.Mui-selected": {
                   bgcolor: navSelectedBg,
-                  color: "white",
+                  color: navTextSelected,
                   "&:hover": { bgcolor: navSelectedHoverBg },
                 },
                 "&:hover": {
                   bgcolor: navHoverBg,
                   ...(isLight && { boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.2)" }),
                 },
-                color: "rgba(248,250,252,0.95)",
+                color: navTextDefault,
               }}
             >
               <ListItemIcon
@@ -241,7 +251,7 @@ const Sidebar = ({
             <ListItemButton
               onClick={(e) => setActionsAnchor((prev) => (prev ? null : (e.currentTarget as HTMLElement)))}
               sx={{
-                color: "rgba(248,250,252,0.95)",
+                color: navTextDefault,
                 "&:hover": { bgcolor: navHoverBg },
                 justifyContent: "center",
                 px: 1.5,
@@ -258,7 +268,7 @@ const Sidebar = ({
           <ListItemButton
             onClick={() => setProfileOpen(!profileOpen)}
             sx={{
-              color: "rgba(248,250,252,0.95)",
+              color: navTextDefault,
               "&:hover": { bgcolor: navHoverBg },
               justifyContent: "flex-start",
               px: 2,
@@ -328,11 +338,11 @@ const Sidebar = ({
                 mx: 1,
                 "&.Mui-selected": {
                   bgcolor: navSelectedBg,
-                  color: "white",
+                  color: navTextSelected,
                   "&:hover": { bgcolor: navSelectedHoverBg },
                 },
                 "&:hover": { bgcolor: navHoverBg, ...(isLight && { boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.2)" }) },
-                color: "rgba(248,250,252,0.95)",
+                color: navTextDefault,
               }}
             >
               <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
@@ -352,7 +362,7 @@ const Sidebar = ({
                   borderRadius: 1,
                   mx: 1,
                   "&:hover": { bgcolor: navHoverBg },
-                  color: "rgba(248,250,252,0.95)",
+                  color: navTextDefault,
                 }}
               >
                 <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
@@ -373,11 +383,11 @@ const Sidebar = ({
                 mx: 1,
                 "&.Mui-selected": {
                   bgcolor: navSelectedBg,
-                  color: "white",
+                  color: navTextSelected,
                   "&:hover": { bgcolor: navSelectedHoverBg },
                 },
                 "&:hover": { bgcolor: navHoverBg, ...(isLight && { boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.2)" }) },
-                color: "rgba(248,250,252,0.95)",
+                color: navTextDefault,
               }}
             >
               <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
@@ -437,8 +447,11 @@ const Sidebar = ({
           width: collapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH,
           boxSizing: "border-box",
           bgcolor: NAV_BG,
-          color: "white",
-          borderRight: "1px solid rgba(255,255,255,0.12)",
+          color: navTextDefault,
+          backdropFilter: "blur(34px) saturate(180%)",
+          WebkitBackdropFilter: "blur(34px) saturate(180%)",
+          border: "1px solid rgba(255,255,255,0.18)",
+          borderRight: "1px solid rgba(255,255,255,0.22)",
           top: 0,
           height: "100vh",
         },
@@ -459,7 +472,9 @@ const Sidebar = ({
           width: DRAWER_WIDTH,
           boxSizing: "border-box",
           bgcolor: NAV_BG,
-          color: "white",
+          color: navTextDefault,
+          backdropFilter: "blur(34px) saturate(180%)",
+          WebkitBackdropFilter: "blur(34px) saturate(180%)",
           borderRight: "none",
           top: 0,
           height: "100%",

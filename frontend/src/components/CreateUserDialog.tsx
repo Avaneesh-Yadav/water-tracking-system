@@ -23,7 +23,6 @@ import Person from "@mui/icons-material/Person";
 import Phone from "@mui/icons-material/Phone";
 import LocationOn from "@mui/icons-material/LocationOn";
 import Lock from "@mui/icons-material/Lock";
-import Security from "@mui/icons-material/Security";
 import { toast } from "@/hooks/use-toast";
 import { createAdminUser } from "@/services/apiService";
 
@@ -86,7 +85,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ onUserCreated, open
       handleClose();
       onUserCreated();
     } catch (error: any) {
-      toast({ title: "Creation Failed", description: error.response?.data?.message || "Failed to create user", variant: "destructive" });
+      toast({ title: "Creation Failed", description: error?.message || "Failed to create user", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }

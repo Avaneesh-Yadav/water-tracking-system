@@ -15,6 +15,7 @@ import Sidebar, { sidebarDrawerWidth, sidebarCollapsedWidth } from "./sidebar";
 import GlobalSearch from "./GlobalSearch";
 import Footer from "./Footer";
 import { getAdminUnreadNotificationCount, markAdminAllPaymentNotificationsRead } from "@/services/apiService";
+import LiquidGlassAtmosphere from "./liquidGlass/LiquidGlassAtmosphere";
 
 const TOP_BAR_HEIGHT = 56;
 
@@ -37,7 +38,9 @@ const Layout = ({ children }: LayoutProps) => {
       if (!stored) return;
       const user = JSON.parse(stored);
       setRole((user?.role || "").toUpperCase());
-    } catch {}
+    } catch {
+      /* ignore invalid JSON in localStorage */
+    }
   }, []);
 
   useEffect(() => {
@@ -50,7 +53,8 @@ const Layout = ({ children }: LayoutProps) => {
   const sidebarWidth = sidebarCollapsed ? sidebarCollapsedWidth : sidebarDrawerWidth;
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default", position: "relative", overflow: "hidden" }}>
+      <LiquidGlassAtmosphere />
       <Sidebar
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -66,9 +70,11 @@ const Layout = ({ children }: LayoutProps) => {
             height: TOP_BAR_HEIGHT,
             left: { xs: 0, md: sidebarWidth },
             width: { xs: "100%", md: `calc(100% - ${sidebarWidth}px)` },
-            boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-            backgroundColor: "#0d4f73",
-            background: "linear-gradient(90deg, #0d4f73, #156f8a)",
+            boxShadow: "0 2px 18px rgba(0,0,0,0.18)",
+            backgroundColor: "rgba(255,255,255,0.10)",
+            backgroundImage: "linear-gradient(90deg, rgba(255,255,255,0.14), rgba(186, 230, 253, 0.10))",
+            backdropFilter: "blur(34px) saturate(180%)",
+            WebkitBackdropFilter: "blur(34px) saturate(180%)",
             color: "#fff",
           }}
         >
@@ -122,13 +128,13 @@ const Layout = ({ children }: LayoutProps) => {
               justifyContent: "center",
               position: "relative",
               backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.82)), url(https://images.unsplash.com/photo-1505142468610-359e7d316be0?auto=format&fit=crop&w=1920&q=75)",
+                "linear-gradient(180deg, rgba(13,79,115,0.14), rgba(255,255,255,0.02))",
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundAttachment: "fixed",
             }}
           >
-            <Box sx={{ width: "100%", maxWidth: 1400, mx: "auto", position: "relative", zIndex: 0 }}>
+            <Box sx={{ width: "100%", maxWidth: 1400, mx: "auto", position: "relative", zIndex: 1 }}>
               {children ?? <Outlet />}
             </Box>
           </Box>

@@ -31,6 +31,7 @@ import {
 import type { ConsumptionRecord, QRData } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
 import PaymentDialog from "@/components/PaymentDialog";
+import Print from "@mui/icons-material/Print";
 
 type AdminConsumptionSortField = "full_name" | "month" | "consumption_liters" | "created_at" | "updated_at";
 
@@ -370,15 +371,15 @@ const ConsumptionPage = () => {
                         <TableCell>{`${r.month} ${r.year}`}</TableCell>
                         <TableCell align="right">{r.previous_meter_reading != null ? Number(r.previous_meter_reading) : "—"}</TableCell>
                         <TableCell align="right">{r.current_meter_reading != null ? Number(r.current_meter_reading) : "—"}</TableCell>
-                        <TableCell align="right">{Number(r.consumption_liters) ?? "—"}</TableCell>
+                        <TableCell align="right">{r.consumption_liters != null ? Number(r.consumption_liters) : "—"}</TableCell>
                         <TableCell>{formatDate(r.created_at)}</TableCell>
                         <TableCell>{formatDate(r.updated_at)}</TableCell>
                         <TableCell align="center">
                           <MeterPhotoThumb path={r.meter_photo_path} size={36} />
                         </TableCell>
                         <TableCell>
-                          <Link to={`/bill/${r.uuid}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                            <Description sx={{ fontSize: 18 }} /> Print
+                          <Link to={`/bill/${r.uuid}`} target="_blank" rel="noopener noreferrer" title="Print Bill" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                           <Print sx={{ fontSize: 18 }} color="primary" />
                           </Link>
                         </TableCell>
                       </TableRow>

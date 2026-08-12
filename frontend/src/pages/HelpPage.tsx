@@ -46,7 +46,9 @@ const HelpPage = () => {
             setUser({ full_name: u.full_name, connection_id: u.connection_id, address: u.address });
           }
         }
-      } catch {}
+      } catch {
+        /* ignore load errors */
+      }
     };
     loadUser();
   }, []);

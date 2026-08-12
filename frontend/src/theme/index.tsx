@@ -49,25 +49,31 @@ export function getTheme(mode) {
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: backgroundWhite,
-            border: "1px solid rgba(21, 101, 192, 0.25)",
-            boxShadow: "0 2px 8px rgba(21, 101, 192, 0.08)",
+            backgroundColor: "rgba(255, 255, 255, 0.14)",
+            backdropFilter: "blur(34px) saturate(180%)",
+            WebkitBackdropFilter: "blur(34px) saturate(180%)",
+            border: "1px solid rgba(255, 255, 255, 0.35)",
+            boxShadow: "0 10px 40px rgba(2, 6, 23, 0.10)",
           },
         },
       },
       MuiPaper: {
         styleOverrides: {
           root: {
-            backgroundColor: backgroundWhite,
-            border: "1px solid rgba(21, 101, 192, 0.2)",
+            backgroundColor: "rgba(255, 255, 255, 0.10)",
+            backdropFilter: "blur(34px) saturate(180%)",
+            WebkitBackdropFilter: "blur(34px) saturate(180%)",
+            border: "1px solid rgba(255, 255, 255, 0.28)",
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: waterBlue,
-            background: `linear-gradient(90deg, ${waterBlue}, ${waterBlueLight})`,
+            backgroundColor: "rgba(255, 255, 255, 0.10)",
+            backgroundImage: `linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(186, 230, 253, 0.10))`,
+            backdropFilter: "blur(34px) saturate(180%)",
+            WebkitBackdropFilter: "blur(34px) saturate(180%)",
           },
         },
       },

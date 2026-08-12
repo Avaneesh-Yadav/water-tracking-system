@@ -1,26 +1,23 @@
 import * as React from "react"
 
-import type {
-  ToastActionElement,
-  ToastProps,
-} from "@/components/ui/toast"
+export type ToastVariant = "default" | "destructive"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
-
-type ToasterToast = ToastProps & {
+/** Toast payload used by `toast()` and `MuiToaster` (no Radix/shadcn types). */
+export type AppToast = {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
-  action?: ToastActionElement
+  variant?: ToastVariant
+  open: boolean
+  onOpenChange?: (open: boolean) => void
+  action?: React.ReactElement
 }
 
-const actionTypes = {
-  ADD_TOAST: "ADD_TOAST",
-  UPDATE_TOAST: "UPDATE_TOAST",
-  DISMISS_TOAST: "DISMISS_TOAST",
-  REMOVE_TOAST: "REMOVE_TOAST",
-} as const
+/** Arguments accepted by `toast({ ... })`. */
+export type ToastPayload = Omit<AppToast, "id" | "open" | "onOpenChange">
+
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 1000000
 
 let count = 0
 
@@ -29,28 +26,26 @@ function genId() {
   return count.toString()
 }
 
-type ActionType = typeof actionTypes
-
 type Action =
   | {
-      type: ActionType["ADD_TOAST"]
-      toast: ToasterToast
+      type: "ADD_TOAST"
+      toast: AppToast
     }
   | {
-      type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast>
+      type: "UPDATE_TOAST"
+      toast: Partial<AppToast> & { id: string }
     }
   | {
-      type: ActionType["DISMISS_TOAST"]
-      toastId?: ToasterToast["id"]
+      type: "DISMISS_TOAST"
+      toastId?: AppToast["id"]
     }
   | {
-      type: ActionType["REMOVE_TOAST"]
-      toastId?: ToasterToast["id"]
+      type: "REMOVE_TOAST"
+      toastId?: AppToast["id"]
     }
 
 interface State {
-  toasts: ToasterToast[]
+  toasts: AppToast[]
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
@@ -90,13 +85,11 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
       if (toastId) {
         addToRemoveQueue(toastId)
       } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
+        state.toasts.forEach((t) => {
+          addToRemoveQueue(t.id)
         })
       }
 
@@ -137,15 +130,13 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
-
-function toast({ ...props }: Toast) {
+function toast({ ...props }: ToastPayload) {
   const id = genId()
 
-  const update = (props: ToasterToast) =>
+  const update = (next: Partial<AppToast> & { id: string }) =>
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...next, id },
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
