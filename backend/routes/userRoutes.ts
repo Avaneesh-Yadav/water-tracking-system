@@ -27,7 +27,7 @@ const router = express.Router();
 
 const requireAdminOrSelf = (req: AuthRequest, res: Response, next: NextFunction): void => {
   const role = (req.user?.role || "").toUpperCase();
-  if (role === "ADMIN" || req.user?.uuid === req.params.uuid) {
+  if (role === "ADMIN" || role === "SUPER_ADMIN" || req.user?.uuid === req.params.uuid) {
     next();
     return;
   }
@@ -130,6 +130,7 @@ router.get('/admin/bill/:consumption_uuid', requireAdmin, userDashboardControlle
 
 // Admin-only routes - User management
 router.post('/admin/create-user', requireAdmin, auditAdmin('CREATE_USER', 'user', (_req, body) => (body as { uuid?: string })?.uuid ?? null), adminController.createAdminUser);
+router.get('/admin/role-policy', requireAdmin, adminController.getRolePolicy);
 router.post('/admin/bulk-import', requireAdmin, upload.single('file'), auditAdmin('BULK_IMPORT_USERS'), adminController.bulkImportUsers);
 router.get('/users', requireAdmin, userController.getAllUsers);
 router.get('/users/id/:id', requireAdmin, userController.getUserById);

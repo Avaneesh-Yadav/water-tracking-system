@@ -101,7 +101,7 @@ export interface NotificationRecord {
   is_paid?: boolean;
 }
 
-// User APIs. Optional q, role (USER|ADMIN), status (ACTIVE|DELETED|REVOKE); page, limit for pagination.
+// User APIs. Optional q, role (USER|ADMIN|SUPER_ADMIN|STAFF), status (ACTIVE|DELETED|REVOKE); page, limit for pagination.
 export const getAllUsers = async (opts?: {
   q?: string;
   page?: number;
@@ -192,6 +192,15 @@ export const createAdminUser = async (data: {
     handleError(error, 'User creation failed');
     throw error;
   }
+};
+
+export const getRolePolicy = async (): Promise<{
+  superAdminExists: boolean;
+  superAdminCount: number;
+  canCreateSuperAdmin: boolean;
+}> => {
+  const response = await axiosInstance.get('/admin/role-policy');
+  return response.data;
 };
 
 // Profile APIs

@@ -99,7 +99,7 @@ const Sidebar = ({
     if (isMobile) onClose?.();
   };
 
-  const isAdmin = role === "ADMIN";
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
   /** On mobile, always show full labels even if desktop sidebar was left collapsed */
   const showFullLabels = !collapsed || isMobile;
 

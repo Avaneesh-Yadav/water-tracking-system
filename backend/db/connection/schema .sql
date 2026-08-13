@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(255) NOT NULL,
     mobile_number VARCHAR(15) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('ADMIN', 'USER') NOT NULL DEFAULT 'USER',
+    role ENUM('ADMIN', 'USER', 'SUPER_ADMIN') NOT NULL DEFAULT 'USER',
     address TEXT,
     status ENUM('ACTIVE', 'DELETED', 'REVOKE') NOT NULL DEFAULT 'ACTIVE',
     connection_id VARCHAR(36) UNIQUE,

@@ -22,6 +22,7 @@ import {
   getPaymentHistory,
 } from "@/services/apiService";
 import type { ConsumptionRecord, PaymentRecord } from "@/services/apiService";
+import { isStaffRole } from "@/utils/roles";
 
 type UserRow = {
   uuid: string;
@@ -56,7 +57,7 @@ const SearchResultsPage = () => {
         const stored = localStorage.getItem("user");
         if (stored) {
           const user = JSON.parse(stored);
-          admin = (user?.role || "").toUpperCase() === "ADMIN";
+          admin = isStaffRole(user?.role);
           setIsAdmin(admin);
         }
         if (admin) {

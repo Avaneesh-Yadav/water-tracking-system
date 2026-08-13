@@ -38,6 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import CreateUserDialog from "@/components/CreateUserDialog";
 import BulkImportDialog from "@/components/BulkImportDialog";
+import { canDeleteTarget, isStaffRole, isSuperAdmin, roleChipColor, roleLabel } from "@/utils/roles";
 
 const ROWS_PER_PAGE_OPTIONS = [10, 25, 50];
 
@@ -69,7 +70,7 @@ const ConsumersPage = () => {
         page: pageNum + 1,
         limit,
         q: q.trim() || undefined,
-        role: isEmployees ? "ADMIN" : "USER",
+        role: isEmployees ? "STAFF" : "USER",
         status: isEmployees ? undefined : "ACTIVE",
       });
       if (Array.isArray(response)) {
@@ -97,7 +98,7 @@ const ConsumersPage = () => {
   }, [searchTerm, isEmployees]);
 
   useEffect(() => {
-    if (isEmployees && (sortField === "connection_id" || sortField === "role" || sortField === "payment_status")) {
+    if (isEmployees && (sortField === "connection_id" || sortField === "payment_status")) {
       setSortField("updated_at");
     }
   }, [isEmployees, sortField]);
@@ -109,7 +110,7 @@ const ConsumersPage = () => {
   useEffect(() => {
     let cancelled = false;
     const loadCounts = async () => {
-      if (currentRole !== "ADMIN" || isEmployees) return;
+      if (!isStaffRole(currentRole) || isEmployees) return;
       const uuids = users.map((u) => u.uuid).filter(Boolean);
       if (uuids.length === 0) return;
       try {
@@ -132,7 +133,7 @@ const ConsumersPage = () => {
     };
   }, [users, currentRole, isEmployees]);
 
-  const tableColCount = isEmployees ? 5 : 9;
+  const tableColCount = isEmployees ? 6 : 9;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -198,7 +199,7 @@ const ConsumersPage = () => {
             loading ? (
               <Skeleton variant="text" width={220} height={20} sx={{ mt: 0.5 }} />
             ) : isEmployees ? (
-              "Administrator and staff logins (role ADMIN). Same tools as consumers: search, sort, open profile."
+              "Administrator and Super Admin logins. Same tools as consumers: search, sort, open profile."
             ) : (
               "Active consumer accounts only (role USER, status ACTIVE). Revoked or inactive accounts are hidden here."
             )
@@ -253,6 +254,9 @@ const ConsumersPage = () => {
                 <TableRow>
                   <TableCell onClick={() => handleSort("full_name")} sx={{ cursor: "pointer" }}>Name <SortIcon field="full_name" /></TableCell>
                   <TableCell onClick={() => handleSort("mobile_number")} sx={{ cursor: "pointer" }}>Mobile <SortIcon field="mobile_number" /></TableCell>
+                  {isEmployees && (
+                    <TableCell onClick={() => handleSort("role")} sx={{ cursor: "pointer" }}>Role <SortIcon field="role" /></TableCell>
+                  )}
                   {!isEmployees && (
                     <>
                       <TableCell onClick={() => handleSort("connection_id")} sx={{ cursor: "pointer" }}>Connection ID <SortIcon field="connection_id" /></TableCell>
@@ -273,6 +277,7 @@ const ConsumersPage = () => {
                       <TableRow key={i}>
                         <TableCell><Skeleton variant="text" width="80%" height={24} /></TableCell>
                         <TableCell><Skeleton variant="text" width={100} height={24} /></TableCell>
+                        {isEmployees && <TableCell><Skeleton variant="rounded" width={90} height={24} /></TableCell>}
                         {!isEmployees && (
                           <>
                             <TableCell><Skeleton variant="text" width={90} height={24} /></TableCell>
@@ -295,7 +300,7 @@ const ConsumersPage = () => {
                   filteredUsers.map((user) => (
                     <TableRow key={user.uuid} hover sx={{ "&:hover": { bgcolor: "action.hover" } }}>
                       <TableCell>
-                        {currentRole === "ADMIN" ? (
+                        {isStaffRole(currentRole) ? (
                           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                             <Link
                               to={`/${user.uuid}`}
@@ -342,11 +347,16 @@ const ConsumersPage = () => {
                         )}
                       </TableCell>
                       <TableCell>{user.mobile_number}</TableCell>
+                      {isEmployees && (
+                        <TableCell>
+                          <Chip size="small" label={roleLabel(user.role)} color={roleChipColor(user.role)} />
+                        </TableCell>
+                      )}
                       {!isEmployees && (
                         <>
                           <TableCell>{user.connection_id}</TableCell>
                           <TableCell>
-                            <Chip size="small" label={user.role} color={user.role === "ADMIN" ? "secondary" : "primary"} />
+                            <Chip size="small" label={roleLabel(user.role)} color={roleChipColor(user.role)} />
                           </TableCell>
                           <TableCell sx={{ color: "error.main", fontWeight: 500 }}>₹{user.dueAmount || 0}</TableCell>
                           <TableCell>
@@ -381,14 +391,17 @@ const ConsumersPage = () => {
                             <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
                             <ListItemText>View</ListItemText>
                           </MenuItem>
-                          <MenuItem onClick={() => { handleEdit(user.uuid); setRowMenuAnchor(null); }}>
+                          <MenuItem
+                            disabled={isSuperAdmin(user.role) && !isSuperAdmin(currentRole)}
+                            onClick={() => { handleEdit(user.uuid); setRowMenuAnchor(null); }}
+                          >
                             <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
                             <ListItemText>Edit</ListItemText>
                           </MenuItem>
                           <MenuItem
-                            disabled={user.role === "ADMIN" || user.uuid === currentUserUuid}
+                            disabled={!canDeleteTarget(currentRole, currentUserUuid, user.role, user.uuid)}
                             onClick={() => {
-                              if (user.role !== "ADMIN" && user.uuid !== currentUserUuid) handleDelete(user.uuid);
+                              if (canDeleteTarget(currentRole, currentUserUuid, user.role, user.uuid)) handleDelete(user.uuid);
                               setRowMenuAnchor(null);
                             }}
                             sx={{ color: "error.main" }}

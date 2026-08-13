@@ -33,6 +33,7 @@ import {
 import type { PaymentRecord } from "@/services/apiService";
 import type { NotificationRecord } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
+import { isStaffRole } from "@/utils/roles";
 
 type AdminPaymentSortField = "full_name" | "amount" | "payment_method" | "transaction_id" | "upi_id" | "paid_at" | "created_at";
 
@@ -50,7 +51,7 @@ const PaymentsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<"USER" | "ADMIN">("USER");
+  const [role, setRole] = useState<"USER" | "ADMIN" | "SUPER_ADMIN">("USER");
   const [adminPaymentList, setAdminPaymentList] = useState<PaymentRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [total, setTotal] = useState(0);
@@ -136,9 +137,9 @@ const PaymentsPage = () => {
         }
         const user = JSON.parse(stored);
         const r = (user?.role || "USER").toUpperCase();
-        setRole(r as "USER" | "ADMIN");
+        setRole(r as "USER" | "ADMIN" | "SUPER_ADMIN");
 
-        if (r === "ADMIN") {
+        if (isStaffRole(r)) {
           await fetchAdminPayments(0, adminRowsPerPage);
           await fetchAdminNotifications();
         } else {
@@ -362,7 +363,7 @@ const PaymentsPage = () => {
     );
   }
 
-  if (role === "ADMIN") {
+  if (isStaffRole(role)) {
     return (
       <Box sx={{ maxWidth: 1280, mx: "auto", width: "100%" }}>
         <Typography

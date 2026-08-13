@@ -15,6 +15,7 @@ import Edit from "@mui/icons-material/Edit";
 import { getUserByUUID } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
 import UserDetails from "./UserDetails";
+import { isStaffRole, roleBadgeSx, roleLabel } from "@/utils/roles";
 
 /**
  * Single profile view at /:uuid
@@ -50,7 +51,7 @@ const ProfileView = () => {
       return;
     }
     const isOwn = uuid === currentUser.uuid;
-    const isAdminViewingOther = currentUser.role === "ADMIN" && uuid !== currentUser.uuid;
+    const isAdminViewingOther = isStaffRole(currentUser.role) && uuid !== currentUser.uuid;
     if (!isOwn && !isAdminViewingOther) {
       setLoading(false);
       return;
@@ -89,7 +90,7 @@ const ProfileView = () => {
     return <Navigate to="/" replace />;
   }
   const isOwnProfile = uuid === currentUser.uuid;
-  const isAdminViewingOther = currentUser.role === "ADMIN" && uuid !== currentUser.uuid;
+  const isAdminViewingOther = isStaffRole(currentUser.role) && uuid !== currentUser.uuid;
   if (!isOwnProfile && !isAdminViewingOther) {
     return <Navigate to="/" replace />;
   }
@@ -140,7 +141,7 @@ const ProfileView = () => {
               <Box>
                 <Typography variant="caption" color="text.secondary">Role</Typography>
                 <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1, mt: 0.5 }}>
-                  <Typography component="span" variant="body2" fontWeight={600} sx={{ px: 1.5, py: 0.5, borderRadius: 10, bgcolor: userData.role === "ADMIN" ? "secondary.light" : "primary.light", color: userData.role === "ADMIN" ? "secondary.dark" : "primary.dark" }}>{userData.role}</Typography>
+                  <Typography component="span" variant="body2" fontWeight={600} sx={{ px: 1.5, py: 0.5, borderRadius: 10, ...roleBadgeSx(userData.role) }}>{roleLabel(userData.role)}</Typography>
                 </Box>
               </Box>
               <Box>

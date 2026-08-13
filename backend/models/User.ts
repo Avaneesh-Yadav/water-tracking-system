@@ -77,6 +77,14 @@ class User {
         pool.query('SELECT COUNT(*) as total FROM users', callback);
     }
 
+    static countByRole(role, callback) {
+        pool.query(
+            'SELECT COUNT(*) as total FROM users WHERE UPPER(TRIM(role)) = ?',
+            [String(role || '').toUpperCase()],
+            callback
+        );
+    }
+
     static _userFilterClause(filters: UserFilterOptions = {}) {
         const conditions = [];
         const params = [];
@@ -87,7 +95,9 @@ class User {
         }
         if (filters.role) {
             const r = String(filters.role).toUpperCase();
-            if (r === 'USER' || r === 'ADMIN') {
+            if (r === 'STAFF') {
+                conditions.push("UPPER(TRIM(role)) IN ('ADMIN', 'SUPER_ADMIN')");
+            } else if (r === 'USER' || r === 'ADMIN' || r === 'SUPER_ADMIN') {
                 conditions.push('UPPER(TRIM(role)) = ?');
                 params.push(r);
             }

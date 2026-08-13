@@ -31,6 +31,7 @@ import {
 import type { ConsumptionRecord, QRData } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
 import PaymentDialog from "@/components/PaymentDialog";
+import { isStaffRole } from "@/utils/roles";
 import Print from "@mui/icons-material/Print";
 
 type AdminConsumptionSortField = "full_name" | "month" | "consumption_liters" | "created_at" | "updated_at";
@@ -43,7 +44,7 @@ const ROWS_PER_PAGE_OPTIONS = [10, 25, 50];
 const ConsumptionPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<"USER" | "ADMIN">("USER");
+  const [role, setRole] = useState<"USER" | "ADMIN" | "SUPER_ADMIN">("USER");
   const [adminConsumptionList, setAdminConsumptionList] = useState<ConsumptionRecord[]>([]);
   const [consumption, setConsumption] = useState<ConsumptionRecord[]>([]);
   const [total, setTotal] = useState(0);
@@ -106,9 +107,9 @@ const ConsumptionPage = () => {
         }
         const user = JSON.parse(stored);
         const r = (user?.role || "USER").toUpperCase();
-        setRole(r as "USER" | "ADMIN");
+        setRole(r as "USER" | "ADMIN" | "SUPER_ADMIN");
 
-        if (r === "ADMIN") {
+        if (isStaffRole(r)) {
           await fetchAdminConsumption(0, adminRowsPerPage);
         } else {
           await fetchUserConsumption(0, rowsPerPage);
@@ -277,7 +278,7 @@ const ConsumptionPage = () => {
     return 0;
   });
 
-  if (role === "ADMIN") {
+  if (isStaffRole(role)) {
     return (
       <Box sx={{ maxWidth: 1280, mx: "auto", width: "100%" }}>
         <Typography

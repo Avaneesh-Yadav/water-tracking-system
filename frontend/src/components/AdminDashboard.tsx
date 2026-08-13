@@ -42,6 +42,7 @@ import type { ConsumptionRecord, PaymentRecord } from "../services/apiService";
 import { ConsumptionMonthCard, PaymentsMonthCard } from "./DashboardTrendCharts";
 import { DashboardHero, DashboardPanel, AdminKpiTile } from "./DashboardChrome";
 import { Link } from "react-router-dom";
+import { isStaffRole } from "@/utils/roles";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -144,7 +145,7 @@ const AdminDashboard = () => {
 
   const pendingPayments = users.filter((u) => u.payment_status === "PENDING").length;
   const completedPayments = users.filter((u) => u.payment_status === "COMPLETED").length;
-  const adminCount = users.filter((u) => u.role === "ADMIN").length;
+  const adminCount = users.filter((u) => isStaffRole(u.role)).length;
 
   const signupsThisMonth = users.filter((u) => new Date(u.created_at) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1)).length;
 

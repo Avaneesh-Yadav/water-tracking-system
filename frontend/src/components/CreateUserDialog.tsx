@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
   Button,
@@ -24,7 +24,8 @@ import Phone from "@mui/icons-material/Phone";
 import LocationOn from "@mui/icons-material/LocationOn";
 import Lock from "@mui/icons-material/Lock";
 import { toast } from "@/hooks/use-toast";
-import { createAdminUser } from "@/services/apiService";
+import { createAdminUser, getRolePolicy } from "@/services/apiService";
+import { isSuperAdmin, storedUserRole } from "@/utils/roles";
 
 interface CreateUserFormValues {
   fullName: string;
@@ -50,6 +51,14 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ onUserCreated, open
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canCreateSuperAdmin, setCanCreateSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    getRolePolicy()
+      .then((policy) => setCanCreateSuperAdmin(!!policy.canCreateSuperAdmin))
+      .catch(() => setCanCreateSuperAdmin(isSuperAdmin(storedUserRole())));
+  }, [open]);
 
   const form = useForm<CreateUserFormValues>({
     defaultValues: {
@@ -112,7 +121,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ onUserCreated, open
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Add a new user or admin to the system. Fill in all the required information.
+            Add a new user, admin, or (when allowed) super admin. Fill in all the required information.
           </DialogContentText>
           <form id="create-user-form" onSubmit={form.handleSubmit(onSubmit)}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -125,6 +134,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ onUserCreated, open
                     <Select {...field} label="User Role">
                       <MenuItem value="USER">User</MenuItem>
                       <MenuItem value="ADMIN">Admin</MenuItem>
+                      {canCreateSuperAdmin && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
                     </Select>
                   </FormControl>
                 )}

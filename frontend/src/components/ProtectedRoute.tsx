@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import axiosInstance from "@/utils/axiosInstance";
+import { isStaffRole, normalizeRole } from "@/utils/roles";
 
 type ProtectedRouteProps = {
   requiredRole?: string;
@@ -18,7 +19,10 @@ const ProtectedRoute = ({ requiredRole }: ProtectedRouteProps) => {
         const response = await axiosInstance.get("/profile");
         const user = response.data;
         localStorage.setItem("user", JSON.stringify(user));
-        if (requiredRole && user.role !== requiredRole) {
+        const needed = normalizeRole(requiredRole);
+        const actual = normalizeRole(user.role);
+        const roleOk = !needed || actual === needed || (needed === "ADMIN" && isStaffRole(actual));
+        if (!roleOk) {
           setRedirectPath("/unauthorized");
           setAuthorized(false);
         } else {

@@ -38,3 +38,9 @@ Use these only if you already have tables and need to add or fix something.
    ```bash
    mysql -u YOUR_USER -p YOUR_DATABASE < backend/db/migrations/002_users_status_inactive.sql
    ```
+
+4. **004_super_admin_role.sql** – Adds `SUPER_ADMIN` to `users.role`:
+
+   ```bash
+   mysql -u YOUR_USER -p YOUR_DATABASE < backend/db/migrations/004_super_admin_role.sql
+   ```

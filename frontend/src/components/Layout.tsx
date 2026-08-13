@@ -16,6 +16,7 @@ import GlobalSearch from "./GlobalSearch";
 import Footer from "./Footer";
 import { getAdminUnreadNotificationCount, markAdminAllPaymentNotificationsRead } from "@/services/apiService";
 import LiquidGlassAtmosphere from "./liquidGlass/LiquidGlassAtmosphere";
+import { isStaffRole } from "@/utils/roles";
 
 const TOP_BAR_HEIGHT = 56;
 
@@ -44,7 +45,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, []);
 
   useEffect(() => {
-    if (role !== "ADMIN") return;
+    if (!isStaffRole(role)) return;
     getAdminUnreadNotificationCount()
       .then((n) => setUnreadNotifications(n))
       .catch(() => setUnreadNotifications(0));
@@ -91,7 +92,7 @@ const Layout = ({ children }: LayoutProps) => {
               </IconButton>
             )}
             <Box sx={{ flex: 1, minWidth: 16 }} />
-            {role === "ADMIN" && (
+            {isStaffRole(role) && (
               <IconButton
                 color="inherit"
                 onClick={async () => {

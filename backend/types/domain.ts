@@ -1,4 +1,4 @@
-export type UserRole = "USER" | "ADMIN";
+export type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN";
 export type UserStatus = "ACTIVE" | "DELETED" | "REVOKE";
 export type PaymentStatus = "PAID" | "UNPAID";
 

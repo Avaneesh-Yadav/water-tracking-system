@@ -32,6 +32,23 @@ export function getTheme(mode) {
     },
     shape: { borderRadius: 12 },
     components: {
+      // Select/Menu/Popover use Modal scroll-lock, which hides the scrollbar and
+      // adds padding-right. Combined with html { scrollbar-gutter: stable } that
+      // creates a right-side gap and shifts the whole UI left.
+      MuiMenu: {
+        defaultProps: { disableScrollLock: true },
+      },
+      MuiPopover: {
+        defaultProps: { disableScrollLock: true },
+      },
+      MuiModal: {
+        defaultProps: { disableScrollLock: true },
+      },
+      MuiSelect: {
+        defaultProps: {
+          MenuProps: { disableScrollLock: true },
+        },
+      },
       MuiButton: {
         styleOverrides: {
           root: { textTransform: "none" },

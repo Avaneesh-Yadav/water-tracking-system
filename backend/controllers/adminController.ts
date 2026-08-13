@@ -8,6 +8,22 @@ import XLSX from 'xlsx';
 import pool from '../db/connection/connection';
 import WaterConsumption from '../models/WaterConsumption';
 import Settings from '../models/Settings';
+import { actorCanAssignSuperAdmin, getSuperAdminCount } from '../utils/rolePolicy';
+import { canAssignSuperAdmin, isValidAssignableRole, normalizeRole } from '../utils/roles';
+
+export const getRolePolicy = async (req: AuthRequest, res: Response) => {
+  try {
+    const superAdminCount = await getSuperAdminCount();
+    res.json({
+      superAdminExists: superAdminCount > 0,
+      superAdminCount,
+      canCreateSuperAdmin: canAssignSuperAdmin(req.user?.role, superAdminCount),
+    });
+  } catch (error) {
+    console.error('Error loading role policy:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
 // Create admin user by admin
 export const createAdminUser = async (req: AuthRequest, res: Response) => {
@@ -19,10 +35,15 @@ export const createAdminUser = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Validate role - only ADMIN or USER allowed
-    const userRole = role || 'USER';
-    if (!['ADMIN', 'USER'].includes(userRole)) {
+    const userRole = normalizeRole(role || 'USER');
+    if (!isValidAssignableRole(userRole)) {
       return res.status(400).json({ message: 'Invalid role specified' });
+    }
+
+    if (userRole === 'SUPER_ADMIN' && !(await actorCanAssignSuperAdmin(req.user?.role))) {
+      return res.status(403).json({
+        message: 'Only an Admin can create the first Super Admin. After that, only a Super Admin can create another Super Admin.'
+      });
     }
 
     // Check if mobile number already exists
@@ -147,7 +168,7 @@ export const bulkImportUsers = async (req: AuthRequest, res: Response) => {
           results.errors.push({
             row: rowNumber,
             data: row,
-            error: 'Invalid role (must be ADMIN or USER)'
+            error: 'Invalid role (must be ADMIN or USER). Super Admin cannot be created via bulk import.'
           });
           continue;
         }

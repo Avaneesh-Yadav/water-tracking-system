@@ -5,6 +5,8 @@ import { queryString } from "../utils/cast";
 import bcrypt from 'bcryptjs';
 import User from '../models/User';
 import pool from '../db/connection/connection';
+import { actorCanAssignSuperAdmin } from '../utils/rolePolicy';
+import { canDeleteTarget, canEditTarget, isSuperAdmin, isValidAssignableRole, normalizeRole } from '../utils/roles';
 
 // Derive payment_status and dueAmount from water_consumption (any UNPAID => PENDING)
 function getPaymentStatusByUserUuids(userUuids, callback) {
@@ -41,7 +43,7 @@ export const getAllUsers = (req: AuthRequest, res: Response) => {
     const statusParam = queryString(req.query.status).trim().toUpperCase();
     const filters: UserFilterOptions = {};
     if (q) filters.q = q;
-    if (roleParam === 'USER' || roleParam === 'ADMIN') filters.role = roleParam;
+    if (roleParam === 'USER' || roleParam === 'ADMIN' || roleParam === 'SUPER_ADMIN' || roleParam === 'STAFF') filters.role = roleParam;
     if (['ACTIVE', 'DELETED', 'REVOKE'].includes(statusParam)) filters.status = statusParam;
 
     const hasPagination = req.query.page != null || req.query.limit != null;
@@ -110,17 +112,60 @@ export const getUserByUuid = (req: AuthRequest, res: Response) => {
 export const updateUser = (req: AuthRequest, res: Response) => {
     const { uuid } = req.params;
     const { fullName, mobileNumber, role, address, status } = req.body;
-    User.update(uuid, fullName, mobileNumber, role, address, status, (err, result) => {
+    User.getByUuid(uuid, async (err, results) => {
         if (err) return res.status(500).json({ message: 'Database error' });
-        res.json({ message: 'User updated successfully' });
+        if (!results || results.length === 0) return res.status(404).json({ message: 'User not found' });
+
+        const target = results[0];
+        const actorRole = req.user?.role;
+        const targetRole = normalizeRole(target.role);
+        const nextRole = normalizeRole(role || targetRole);
+
+        const editCheck = canEditTarget(actorRole, targetRole);
+        if (!editCheck.ok) {
+            return res.status(403).json({ message: editCheck.message });
+        }
+
+        if (!isValidAssignableRole(nextRole)) {
+            return res.status(400).json({ message: 'Invalid role specified' });
+        }
+
+        if (isSuperAdmin(targetRole) && nextRole !== 'SUPER_ADMIN') {
+            return res.status(403).json({ message: 'Super Admin role cannot be changed.' });
+        }
+
+        if (nextRole === 'SUPER_ADMIN' && targetRole !== 'SUPER_ADMIN') {
+            const allowed = await actorCanAssignSuperAdmin(actorRole);
+            if (!allowed) {
+                return res.status(403).json({
+                    message: 'Only an Admin can assign the first Super Admin. After that, only a Super Admin can assign Super Admin.'
+                });
+            }
+        }
+
+        User.update(uuid, fullName, mobileNumber, nextRole, address, status, (updateErr) => {
+            if (updateErr) return res.status(500).json({ message: 'Database error' });
+            res.json({ message: 'User updated successfully' });
+        });
     });
 };
 
 export const deleteUser = (req: AuthRequest, res: Response) => {
     const { uuid } = req.params;
-    User.delete(uuid, (err, result) => {
+    User.getByUuid(uuid, (err, results) => {
         if (err) return res.status(500).json({ message: 'Database error' });
-        res.json({ message: 'User deleted successfully' });
+        if (!results || results.length === 0) return res.status(404).json({ message: 'User not found' });
+
+        const target = results[0];
+        const check = canDeleteTarget(req.user?.role, req.user?.uuid, target.role, target.uuid);
+        if (!check.ok) {
+            return res.status(403).json({ message: check.message });
+        }
+
+        User.delete(uuid, (deleteErr) => {
+            if (deleteErr) return res.status(500).json({ message: 'Database error' });
+            res.json({ message: 'User deleted successfully' });
+        });
     });
 };
 

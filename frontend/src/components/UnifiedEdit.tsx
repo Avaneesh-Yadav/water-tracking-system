@@ -22,8 +22,9 @@ import Key from "@mui/icons-material/Key";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Save from "@mui/icons-material/Save";
-import { getUserByUUID, updateProfile, updateUserByUuid } from "@/services/apiService";
+import { getUserByUUID, getRolePolicy, updateProfile, updateUserByUuid } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
+import { isStaffRole, isSuperAdmin, storedUserRole } from "@/utils/roles";
 
 /**
  * Single edit page at /:uuid/edit
@@ -57,14 +58,14 @@ const UnifiedEdit = () => {
   if (!uuid) return <Navigate to="/" replace />;
 
   const isOwnProfile = uuid === currentUser.uuid;
-  const isAdmin = currentUser.role === "ADMIN";
+  const isAdmin = isStaffRole(currentUser.role);
   const canEdit = isOwnProfile || isAdmin;
   if (!canEdit) return <Navigate to="/unauthorized" replace />;
 
   if (isOwnProfile) {
     return <ProfileEditForm uuid={uuid} onSuccess={() => navigate(`/${uuid}`)} onCancel={() => navigate(`/${uuid}`)} />;
   }
-  return <AdminUserEdit uuid={uuid} onSuccess={() => navigate("/dashboard")} onCancel={() => navigate("/dashboard")} />;
+  return <AdminUserEdit actorRole={currentUser.role} uuid={uuid} onSuccess={() => navigate("/dashboard")} onCancel={() => navigate("/dashboard")} />;
 };
 
 export default UnifiedEdit;
@@ -189,7 +190,7 @@ function ProfileEditForm({ uuid, onSuccess, onCancel }: { uuid: string; onSucces
 }
 
 // --- Admin user edit (PUT /users/:uuid: fullName, mobileNumber, role, address, status) ---
-function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess: () => void; onCancel: () => void }) {
+function AdminUserEdit({ uuid, actorRole, onSuccess, onCancel }: { uuid: string; actorRole: string; onSuccess: () => void; onCancel: () => void }) {
   const [readOnly, setReadOnly] = useState({ connectionId: "", dueAmount: 0, paymentStatus: "" });
   const [formData, setFormData] = useState({
     fullName: "",
@@ -200,16 +201,26 @@ function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess:
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [canCreateSuperAdmin, setCanCreateSuperAdmin] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
-    getUserByUUID(uuid)
-      .then((data: any) => {
+    Promise.all([
+      getUserByUUID(uuid),
+      getRolePolicy().catch(() => ({ canCreateSuperAdmin: isSuperAdmin(actorRole || storedUserRole()) })),
+    ])
+      .then(([data, policy]: [any, { canCreateSuperAdmin?: boolean }]) => {
         const role = (data.role || "USER").toString().toUpperCase();
+        if (isSuperAdmin(role) && !isSuperAdmin(actorRole)) {
+          setForbidden(true);
+          return;
+        }
+        setCanCreateSuperAdmin(!!policy.canCreateSuperAdmin);
         setFormData({
           fullName: data.full_name || data.name || "",
           mobileNumber: data.mobile_number || data.mobile || "",
           address: data.address || "",
-          role: role === "ADMIN" ? "ADMIN" : "USER",
+          role: role === "ADMIN" || role === "SUPER_ADMIN" ? role : "USER",
           status: data.status || "ACTIVE",
         });
         setReadOnly({
@@ -220,7 +231,7 @@ function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess:
       })
       .catch(() => toast({ title: "Error", description: "Failed to load user", variant: "destructive" }))
       .finally(() => setLoading(false));
-  }, [uuid]);
+  }, [uuid, actorRole]);
 
   const handleChange = (field: keyof typeof formData, value: string) =>
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -256,6 +267,13 @@ function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess:
       </Box>
     );
   }
+
+  if (forbidden) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  const roleLocked = isSuperAdmin(formData.role);
+  const showSuperAdminOption = canCreateSuperAdmin || roleLocked;
 
   return (
     <Box sx={{ maxWidth: 896, mx: "auto", width: "100%" }}>
@@ -295,9 +313,10 @@ function AdminUserEdit({ uuid, onSuccess, onCancel }: { uuid: string; onSuccess:
               <TextField label="Mobile number" value={formData.mobileNumber} onChange={(e) => handleChange("mobileNumber", e.target.value)} fullWidth required />
               <FormControl fullWidth>
                 <InputLabel>Role</InputLabel>
-                <Select value={formData.role} label="Role" onChange={(e) => handleChange("role", e.target.value)}>
+                <Select value={formData.role} label="Role" onChange={(e) => handleChange("role", e.target.value)} disabled={roleLocked}>
                   <MenuItem value="USER">USER</MenuItem>
                   <MenuItem value="ADMIN">ADMIN</MenuItem>
+                  {showSuperAdminOption && <MenuItem value="SUPER_ADMIN">SUPER ADMIN</MenuItem>}
                 </Select>
               </FormControl>
               <FormControl fullWidth>

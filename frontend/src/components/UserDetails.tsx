@@ -27,6 +27,7 @@ import ConsumptionHistory from "./ConsumptionHistory";
 import PaymentHistory from "./PaymentHistory";
 import { getUserByUUID, addConsumption, uploadConsumptionMeterPhoto, getConsumptionByUser, getPaymentHistoryByUser } from "@/services/apiService";
 import type { ConsumptionRecord } from "@/services/apiService";
+import { isStaffRole } from "@/utils/roles";
 
 type UserProfile = {
   name: string;
@@ -266,7 +267,7 @@ const UserDetails = () => {
     );
   }
 
-  const isAdminProfile = userData.role?.toUpperCase() === "ADMIN";
+  const isAdminProfile = isStaffRole(userData.role);
   const insights: InsightCard[] = [
     { icon: AccountBalanceWallet, label: "Outstanding Due", value: formatCurrency(displayDueAmount), meta: `Payment status: ${userData.paymentStatus}` },
     ...(!isAdminProfile ? [

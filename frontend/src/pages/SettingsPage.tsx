@@ -35,6 +35,7 @@ import {
   restoreBackup,
 } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
+import { isStaffRole } from "@/utils/roles";
 
 const STORAGE_KEYS = {
   billReminders: "aquaflow_settings_bill_reminders",
@@ -66,7 +67,7 @@ const SettingsPage = () => {
       const start = localStorage.getItem(STORAGE_KEYS.defaultStartPage) as DefaultStartPage | null;
       if (start && ["dashboard", "consumption", "payments"].includes(start)) setDefaultStart(start);
       const u = JSON.parse(localStorage.getItem("user") || "{}");
-      setIsAdmin((u?.role || "").toUpperCase() === "ADMIN");
+      setIsAdmin(isStaffRole(u?.role));
     } catch {
       // keep defaults
     }

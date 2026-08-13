@@ -27,7 +27,7 @@ const DashboardView = () => {
     if (!stored) return <Navigate to="/" replace />;
     const user = JSON.parse(stored);
     const role = user?.role?.toUpperCase();
-    if (role === "ADMIN") return <Layout><AdminDashboard /></Layout>;
+    if (role === "ADMIN" || role === "SUPER_ADMIN") return <Layout><AdminDashboard /></Layout>;
   } catch {
     return <Navigate to="/" replace />;
   }

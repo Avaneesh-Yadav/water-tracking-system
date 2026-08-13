@@ -6,6 +6,7 @@ import ArrowBack from "@mui/icons-material/ArrowBack";
 import { getBillForPrint, type BillData } from "@/services/apiService";
 import { uploadFileUrl } from "@/utils/apiOrigin";
 import { ImagePreviewDialog } from "@/components/ImagePreviewDialog";
+import { isStaffRole } from "@/utils/roles";
 
 const BillPrintPage = () => {
   const { consumptionUuid } = useParams<{ consumptionUuid: string }>();
@@ -19,7 +20,7 @@ const BillPrintPage = () => {
       return;
     }
     const raw = localStorage.getItem("user");
-    const asAdmin = raw ? String(JSON.parse(raw).role || "").toUpperCase() === "ADMIN" : false;
+    const asAdmin = raw ? isStaffRole(JSON.parse(raw).role) : false;
     getBillForPrint(consumptionUuid, asAdmin)
       .then(setBill)
       .catch(() => setError("Could not load this bill. Check that you are signed in and the bill exists."));

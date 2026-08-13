@@ -22,6 +22,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Save from "@mui/icons-material/Save";
 import { getUserByUUID, updateProfile } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
+import { roleBadgeSx, roleLabel } from "@/utils/roles";
 import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
@@ -173,7 +174,7 @@ const Profile = () => {
                 <Box>
                   <Typography variant="caption" color="text.secondary">Role</Typography>
                   <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1, mt: 0.5 }}>
-                    <Typography component="span" variant="body2" fontWeight={600} sx={{ px: 1.5, py: 0.5, borderRadius: 10, bgcolor: userData.role === "ADMIN" ? "secondary.light" : "primary.light", color: userData.role === "ADMIN" ? "secondary.dark" : "primary.dark" }}>{userData.role}</Typography>
+                    <Typography component="span" variant="body2" fontWeight={600} sx={{ px: 1.5, py: 0.5, borderRadius: 10, ...roleBadgeSx(userData.role) }}>{roleLabel(userData.role)}</Typography>
                   </Box>
                 </Box>
                 <Box>
