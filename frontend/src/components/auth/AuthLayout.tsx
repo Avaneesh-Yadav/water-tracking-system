@@ -95,23 +95,7 @@ function SidePanelInner({ pill, title, text, features }: SideContent) {
   );
 }
 
-/** Static right panel (forgot / reset flow) */
-export function AuthSidePanel(props: SideContent) {
-  return (
-    <aside className="auth-side-panel" aria-hidden>
-      <div className="auth-overlay__bg" />
-      <div className="auth-overlay__waves" aria-hidden>
-        <div className="auth-overlay__wave auth-overlay__wave--top" />
-        <div className="auth-overlay__wave auth-overlay__wave--bottom" />
-      </div>
-      <div className="auth-overlay__content auth-overlay__content--static">
-        <SidePanelInner {...props} />
-      </div>
-    </aside>
-  );
-}
-
-/** Sliding panel for login ↔ signup */
+/** Sliding glass door that covers one form and reveals the other */
 export function AuthSlidingOverlay({
   login,
   signup,
@@ -133,6 +117,22 @@ export function AuthSlidingOverlay({
         <div className="auth-overlay__side auth-overlay__side--signup">
           <SidePanelInner {...signup} />
         </div>
+      </div>
+    </aside>
+  );
+}
+
+/** Static right panel (forgot / reset flow) */
+export function AuthSidePanel(props: SideContent) {
+  return (
+    <aside className="auth-side-panel" aria-hidden>
+      <div className="auth-overlay__bg" />
+      <div className="auth-overlay__waves" aria-hidden>
+        <div className="auth-overlay__wave auth-overlay__wave--top" />
+        <div className="auth-overlay__wave auth-overlay__wave--bottom" />
+      </div>
+      <div className="auth-overlay__content auth-overlay__content--static">
+        <SidePanelInner {...props} />
       </div>
     </aside>
   );

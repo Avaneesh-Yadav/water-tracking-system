@@ -2,6 +2,7 @@ export const ROLES = {
   USER: "USER",
   ADMIN: "ADMIN",
   SUPER_ADMIN: "SUPER_ADMIN",
+  METER_READER: "METER_READER",
 } as const;
 
 export function normalizeRole(role?: string | null): string {
@@ -21,10 +22,19 @@ export function isStaffRole(role?: string | null): boolean {
   return r === ROLES.ADMIN || r === ROLES.SUPER_ADMIN;
 }
 
+export function isMeterReader(role?: string | null): boolean {
+  return normalizeRole(role) === ROLES.METER_READER;
+}
+
+export function isOpsRole(role?: string | null): boolean {
+  return isStaffRole(role) || isMeterReader(role);
+}
+
 export function roleLabel(role?: string | null): string {
   const r = normalizeRole(role);
   if (r === ROLES.SUPER_ADMIN) return "Super Admin";
   if (r === ROLES.ADMIN) return "Admin";
+  if (r === ROLES.METER_READER) return "Meter reader";
   if (r === ROLES.USER) return "User";
   return r || "User";
 }

@@ -121,7 +121,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ onUserCreated, open
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Add a new user, admin, or (when allowed) super admin. Fill in all the required information.
+            Add a consumer, meter reader, admin, or (when allowed) super admin.
           </DialogContentText>
           <form id="create-user-form" onSubmit={form.handleSubmit(onSubmit)}>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -133,6 +133,7 @@ const CreateUserDialog: React.FC<CreateUserDialogProps> = ({ onUserCreated, open
                     <InputLabel>User Role</InputLabel>
                     <Select {...field} label="User Role">
                       <MenuItem value="USER">User</MenuItem>
+                      <MenuItem value="METER_READER">Meter reader</MenuItem>
                       <MenuItem value="ADMIN">Admin</MenuItem>
                       {canCreateSuperAdmin && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
                     </Select>

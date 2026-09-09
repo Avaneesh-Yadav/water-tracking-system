@@ -16,8 +16,10 @@ import {
   Paper,
   Skeleton,
   TablePagination,
+  IconButton,
 } from "@mui/material";
 import Description from "@mui/icons-material/Description";
+import { BillPreviewDialog } from "@/components/bill/BillPreviewDialog";
 import MeterPhotoThumb from "@/components/MeterPhotoThumb";
 import ArrowUpward from "@mui/icons-material/ArrowUpward";
 import ArrowDownward from "@mui/icons-material/ArrowDownward";
@@ -59,6 +61,7 @@ const ConsumptionPage = () => {
   const [qrData, setQrData] = useState<QRData | null>(null);
   const [selectedBill, setSelectedBill] = useState<ConsumptionRecord | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [previewUuid, setPreviewUuid] = useState<string | null>(null);
 
   const userTotals = useMemo(() => {
     if (!consumption || consumption.length === 0) return { totalLiters: 0, totalAmount: 0 };
@@ -379,9 +382,9 @@ const ConsumptionPage = () => {
                           <MeterPhotoThumb path={r.meter_photo_path} size={36} />
                         </TableCell>
                         <TableCell>
-                          <Link to={`/bill/${r.uuid}`} target="_blank" rel="noopener noreferrer" title="Print Bill" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                           <Print sx={{ fontSize: 18 }} color="primary" />
-                          </Link>
+                          <IconButton size="small" title="Print bill" onClick={() => setPreviewUuid(r.uuid)} color="primary">
+                            <Print sx={{ fontSize: 18 }} />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     ))
@@ -400,6 +403,11 @@ const ConsumptionPage = () => {
             </TableContainer>
           </CardContent>
         </Card>
+        <BillPreviewDialog
+          open={!!previewUuid}
+          consumptionUuid={previewUuid}
+          onClose={() => setPreviewUuid(null)}
+        />
       </Box>
     );
   }
@@ -512,9 +520,17 @@ const ConsumptionPage = () => {
                         <MeterPhotoThumb path={r.meter_photo_path} size={36} />
                       </TableCell>
                       <TableCell>
-                        <Link to={`/bill/${r.uuid}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }} onClick={(e) => e.stopPropagation()}>
-                          <Description sx={{ fontSize: 18 }} /> Print
-                        </Link>
+                        <Button
+                          size="small"
+                          startIcon={<Description sx={{ fontSize: 18 }} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewUuid(r.uuid);
+                          }}
+                          sx={{ fontWeight: 600, minWidth: 0 }}
+                        >
+                          Print
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -544,6 +560,11 @@ const ConsumptionPage = () => {
           setQrData(null);
           setSelectedBill(null);
         }}
+      />
+      <BillPreviewDialog
+        open={!!previewUuid}
+        consumptionUuid={previewUuid}
+        onClose={() => setPreviewUuid(null)}
       />
     </Box>
   );

@@ -4,6 +4,7 @@ import Index from "./Index";
 import UserDashboard from "./UserDashboard";
 import AdminDashboard from "./AdminDashboard";
 import Layout from "./Layout";
+import FieldOpsPage from "@/pages/FieldOpsPage";
 
 /**
  * For path "/": show Index when not logged in, redirect to /dashboard when logged in.
@@ -28,6 +29,7 @@ const DashboardView = () => {
     const user = JSON.parse(stored);
     const role = user?.role?.toUpperCase();
     if (role === "ADMIN" || role === "SUPER_ADMIN") return <Layout><AdminDashboard /></Layout>;
+    if (role === "METER_READER") return <Layout><FieldOpsPage /></Layout>;
   } catch {
     return <Navigate to="/" replace />;
   }

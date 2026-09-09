@@ -1,8 +1,8 @@
-import React, { createContext, useContext, createElement } from "react";
+import React, { createContext, useContext, createElement, useMemo, useState } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import { getTheme } from "@/theme";
 
-type Theme = "light";
+type Theme = "light" | "dark";
 
 type ThemeModeContextValue = {
   theme: Theme;
@@ -17,12 +17,18 @@ export const useThemeMode = () => {
 };
 
 export const ThemeModeProvider = ({ children }: { children: React.ReactNode }) => {
-  const theme: Theme = "light";
-  const toggleTheme = () => {};
-  const muiTheme = getTheme("light");
+  const [theme, setTheme] = useState<Theme>(() =>
+    localStorage.getItem("aquaflow_theme") === "dark" ? "dark" : "light"
+  );
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      localStorage.setItem("aquaflow_theme", next);
+      return next;
+    });
+  };
+  const muiTheme = useMemo(() => getTheme(theme), [theme]);
 
-  // createElement avoids lovable-tagger injecting data-lov-* / data-component-*
-  // onto MUI ThemeProvider, which rejects unknown props in development.
   return (
     <ThemeModeContext.Provider value={{ theme, toggleTheme }}>
       {createElement(ThemeProvider, { theme: muiTheme }, children)}

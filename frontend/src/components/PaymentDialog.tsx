@@ -45,11 +45,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
   const handleConfirm = () => {
     const trimmed = message.trim();
-    if (!trimmed || processing) return;
+    if (trimmed.replace(/\s+/g, "").length < 6 || processing) return;
     onConfirm(trimmed);
   };
 
-  const canConfirm = message.trim().length > 0 && !processing;
+  const canConfirm = message.trim().replace(/\s+/g, "").length >= 6 && !processing;
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -66,16 +66,18 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             <Box sx={{ display: "flex", justifyContent: "center", p: 2, bgcolor: "grey.100", borderRadius: 2 }}>
               <QRCode value={qrData.upi_url} size={200} />
             </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              Pay with any UPI app, then enter the UTR / UPI reference. There is no Razorpay checkout.
+            </Typography>
             <TextField
               fullWidth
-              label="Payment reference (e.g. UTR, transaction ID, or note)"
-              placeholder="Enter reference so admin can verify your payment"
+              label="UPI UTR / reference (min 6 characters)"
+              placeholder="e.g. 123456789012"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              multiline
-              minRows={2}
-              sx={{ mt: 2 }}
-              inputProps={{ maxLength: 500 }}
+              helperText="Copy the UTR from your UPI app so the office can approve your payment."
+              sx={{ mt: 1.5 }}
+              inputProps={{ maxLength: 40 }}
             />
           </>
         )}

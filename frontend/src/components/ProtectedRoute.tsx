@@ -38,9 +38,21 @@ const ProtectedRoute = ({ requiredRole }: ProtectedRouteProps) => {
 
   if (authorized === null) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", gap: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          gap: 2,
+          bgcolor: "#c8dce8",
+          backgroundImage:
+            "linear-gradient(160deg, rgba(186, 230, 253, 0.55) 0%, rgba(255, 255, 255, 0.35) 48%, rgba(125, 211, 252, 0.25) 100%)",
+        }}
+      >
         <CircularProgress />
-        <Typography color="text.secondary">Loading...</Typography>
+        <Typography color="text.secondary">Loading…</Typography>
       </Box>
     );
   }

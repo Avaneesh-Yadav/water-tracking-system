@@ -27,17 +27,19 @@ const GlobalSearch = () => {
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <Search sx={{ color: "primary.main", fontSize: 22 }} />
-            </InputAdornment>
+            <Search sx={{ color: "primary.main", fontSize: 22 }} />
+          </InputAdornment>
           ),
           sx: {
-            bgcolor: "white",
-            borderRadius: 2,
+            bgcolor: "rgba(255, 255, 255, 0.55)",
+            backdropFilter: "blur(20px) saturate(160%)",
+            WebkitBackdropFilter: "blur(20px) saturate(160%)",
+            borderRadius: 999,
             width: { xs: 180, sm: 300 },
             fontWeight: 500,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
             "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "rgba(0,0,0,0.12)",
+              borderColor: "rgba(255,255,255,0.7)",
               borderWidth: 1,
             },
             "&:hover .MuiOutlinedInput-notchedOutline": {
@@ -50,7 +52,7 @@ const GlobalSearch = () => {
             },
             "& input": {
               color: "text.primary",
-              py: 1.1,
+              py: 0.75,
               "&::placeholder": { color: "text.secondary", opacity: 0.9 },
             },
           },

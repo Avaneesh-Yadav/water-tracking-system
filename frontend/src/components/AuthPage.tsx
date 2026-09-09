@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import Phone from "@mui/icons-material/Phone";
 import Lock from "@mui/icons-material/Lock";
 import Person from "@mui/icons-material/Person";
@@ -9,6 +9,7 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { toast } from "@/hooks/use-toast";
 import { loginUser } from "@/services/accountService";
+import { opsApi } from "@/services/opsService";
 import { registerUser } from "@/services/apiService";
 import { RegisterFormValues } from "@/types/user";
 import { AuthShell, AuthSlidingOverlay } from "@/components/auth/AuthLayout";
@@ -40,6 +41,8 @@ function LoginPanel({
 }) {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
   const form = useForm<LoginFormValues>({
     defaultValues: {
       mobileNumber: "",
@@ -54,6 +57,14 @@ function LoginPanel({
         mobileNumber: data.mobileNumber,
         password: data.password,
       });
+      if (!response) {
+        toast({ title: "Login Failed", description: "No response from server.", variant: "destructive" });
+        return;
+      }
+      if (response.requires2fa && response.pendingToken) {
+        setPendingToken(response.pendingToken);
+        return;
+      }
       const { user } = response;
       localStorage.setItem("user", JSON.stringify(user));
       if (data.keepSignedIn) {
@@ -93,6 +104,41 @@ function LoginPanel({
       </header>
 
       <form className="auth-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+        {pendingToken && (
+          <div className="auth-field">
+            <p className="auth-label">Authenticator code</p>
+            <div className="auth-input-wrap">
+              <input
+                className="auth-input"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                placeholder="6-digit code"
+                autoComplete="one-time-code"
+              />
+            </div>
+            <button
+              type="button"
+              className="auth-submit"
+              onClick={async () => {
+                try {
+                  const response = await opsApi.login2fa(pendingToken, otp);
+                  localStorage.setItem("user", JSON.stringify(response.user));
+                  toast({ title: "Login Successful", description: `Welcome back, ${response.user.fullName}!` });
+                  navigate(postAuthPath());
+                } catch (error: any) {
+                  toast({
+                    title: "Invalid code",
+                    description: error?.response?.data?.message || "Try again",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              Verify
+            </button>
+          </div>
+        )}
         <Controller
           name="mobileNumber"
           control={form.control}
@@ -439,24 +485,44 @@ function SignupPanel({
   );
 }
 
+/** Keep in sync with .auth-overlay transition in auth.css */
+const AUTH_SLIDE_MS = 500;
+
 export default function AuthPage({ initialMode }: { initialMode?: AuthMode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const pathMode: AuthMode = location.pathname.includes("register") ? "signup" : "login";
   const [transitioning, setTransitioning] = useState(false);
-  /** Optimistic mode during slide so UI moves before route settles */
   const [displayMode, setDisplayMode] = useState<AuthMode>(initialMode ?? pathMode);
+  const slideTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    if (transitioning) return;
     setDisplayMode(pathMode);
-  }, [pathMode]);
+  }, [pathMode, transitioning]);
+
+  useEffect(() => {
+    return () => {
+      if (slideTimer.current) window.clearTimeout(slideTimer.current);
+    };
+  }, []);
 
   const switchTo = (next: AuthMode) => {
-    if (next === displayMode) return;
+    if (next === displayMode || transitioning) return;
+
     setTransitioning(true);
-    setDisplayMode(next);
-    navigate(next === "signup" ? "/register" : "/login", { replace: true });
-    window.setTimeout(() => setTransitioning(false), 3600);
+    // Paint the current side first, then change class so CSS can interpolate the linear slide.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setDisplayMode(next);
+        navigate(next === "signup" ? "/register" : "/login", { replace: true });
+      });
+    });
+
+    if (slideTimer.current) window.clearTimeout(slideTimer.current);
+    slideTimer.current = window.setTimeout(() => {
+      setTransitioning(false);
+    }, AUTH_SLIDE_MS) as unknown as number;
   };
 
   return (
@@ -483,6 +549,7 @@ export default function AuthPage({ initialMode }: { initialMode?: AuthMode }) {
           }}
         />
       </div>
+      <Outlet />
     </AuthShell>
   );
 }

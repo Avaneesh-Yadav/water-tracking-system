@@ -41,8 +41,8 @@ import Payments from "@mui/icons-material/Payments";
 import type { ConsumptionRecord, PaymentRecord } from "../services/apiService";
 import { ConsumptionMonthCard, PaymentsMonthCard } from "./DashboardTrendCharts";
 import { DashboardHero, DashboardPanel, AdminKpiTile } from "./DashboardChrome";
-import { Link } from "react-router-dom";
 import { isStaffRole } from "@/utils/roles";
+import { BillPreviewDialog } from "@/components/bill/BillPreviewDialog";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -59,6 +59,7 @@ const AdminDashboard = () => {
   const [monthPayDialogOpen, setMonthPayDialogOpen] = useState(false);
   const [monthPayRows, setMonthPayRows] = useState<PaymentRecord[]>([]);
   const [monthPayLoading, setMonthPayLoading] = useState(false);
+  const [previewUuid, setPreviewUuid] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -318,7 +319,7 @@ const AdminDashboard = () => {
                       <TableCell align="right">{Number(r.consumption_liters).toLocaleString("en-IN")}</TableCell>
                       <TableCell align="right">₹{Number(r.amount).toFixed(2)}</TableCell>
                       <TableCell align="right">
-                        <Button component={Link} to={`/bill/${r.uuid}`} size="small" target="_blank" rel="noopener noreferrer">
+                        <Button size="small" onClick={() => setPreviewUuid(r.uuid)}>
                           Print
                         </Button>
                       </TableCell>
@@ -379,6 +380,11 @@ const AdminDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+      <BillPreviewDialog
+        open={!!previewUuid}
+        consumptionUuid={previewUuid}
+        onClose={() => setPreviewUuid(null)}
+      />
     </Box>
   );
 };

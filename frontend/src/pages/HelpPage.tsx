@@ -15,9 +15,11 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import ContactSupport from "@mui/icons-material/ContactSupport";
 import Badge from "@mui/icons-material/Badge";
 import { getBrandingSettings, getUserByUUID } from "@/services/apiService";
+import { Link as RouterLink } from "react-router-dom";
 
 const FAQ_ITEMS = [
-  { q: "How do I pay my water bill?", a: "From the Dashboard, click 'Pay Total Due' or pay a specific bill. Scan the QR code with your UPI app, complete the payment, then tap 'I have paid' to record it." },
+  { q: "How do I pay my water bill?", a: "From the Dashboard, click Pay Total Due or pay a specific bill. Scan the UPI QR with any UPI app, pay, then enter the UTR and tap I have completed the payment. The office approves it — there is no Razorpay." },
+  { q: "How do I apply for a new connection?", a: "Open Apply for a connection (no login needed). Staff review applications from the service desk." },
   { q: "When is my bill due?", a: "The due day is set by your water authority (see Settings for the default). Your bill slip shows the due date. Pay before the due day to avoid late fees if applicable." },
   { q: "How do I read my meter?", a: "Note the current reading on your water meter (in liters). Enter it when you submit a reading or ask your admin to add the consumption for your connection." },
   { q: "Can I download my bill?", a: "Yes. On the Dashboard, in the 'Recent bills' table, click 'Bill' next to any period to open and print your bill." },
@@ -84,6 +86,9 @@ const HelpPage = () => {
           <Typography variant="body2"><strong>Connection ID:</strong> <Box component="span" sx={{ fontFamily: "monospace" }}>{user.connection_id || "—"}</Box></Typography>
           <Typography variant="body2"><strong>Address:</strong> {user.address || "—"}</Typography>
           <Button variant="outlined" size="small" sx={{ mt: 2 }} onClick={printConnectionCard}>Print connection card</Button>
+          <Button component={RouterLink} to="/apply" variant="text" size="small" sx={{ mt: 1, ml: 1 }}>
+            Apply for a new connection
+          </Button>
         </CardContent>
       </Card>
 

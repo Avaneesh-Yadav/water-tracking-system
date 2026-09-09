@@ -199,7 +199,7 @@ const ConsumersPage = () => {
             loading ? (
               <Skeleton variant="text" width={220} height={20} sx={{ mt: 0.5 }} />
             ) : isEmployees ? (
-              "Administrator and Super Admin logins. Same tools as consumers: search, sort, open profile."
+              "Admin, Super Admin, and meter-reader logins. Search, sort, and open a profile."
             ) : (
               "Active consumer accounts only (role USER, status ACTIVE). Revoked or inactive accounts are hidden here."
             )

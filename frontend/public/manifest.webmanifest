@@ -1,0 +1,17 @@
+{
+  "name": "AquaFlow Water Management",
+  "short_name": "AquaFlow",
+  "description": "Track consumption, pay bills by UPI, and manage water connections.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#d7ebf5",
+  "theme_color": "#0071e3",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

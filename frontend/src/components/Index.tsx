@@ -90,6 +90,13 @@ const Index = () => {
                   <LoginIcon fontSize="small" />
                   Sign in
                 </button>
+                <button
+                  type="button"
+                  className="landing-btn landing-btn--glass"
+                  onClick={() => navigate("/apply")}
+                >
+                  Apply for a connection
+                </button>
               </div>
               <div className="landing-stats">
                 {stats.map((s) => (

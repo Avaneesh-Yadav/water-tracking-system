@@ -29,6 +29,7 @@ import {
   getAdminNotifications,
   getAdminPaymentNotificationsByUser,
   approveAdminPaymentNotification,
+  rejectAdminPaymentNotification,
 } from "@/services/apiService";
 import type { PaymentRecord } from "@/services/apiService";
 import type { NotificationRecord } from "@/services/apiService";
@@ -155,6 +156,19 @@ const PaymentsPage = () => {
     };
     run();
   }, [fetchUserPayments, rowsPerPage, fetchAdminPayments, fetchAdminNotifications]);
+
+  const handleRejectNotification = async (notificationUuid: string) => {
+    try {
+      setApprovingUuid(notificationUuid);
+      await rejectAdminPaymentNotification(notificationUuid);
+      toast({ title: "Rejected", description: "Consumer was notified to pay again." });
+      await fetchAdminNotifications();
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.response?.data?.message || "Failed to reject", variant: "destructive" });
+    } finally {
+      setApprovingUuid(null);
+    }
+  };
 
   const handleApproveNotification = async (notificationUuid: string) => {
     try {
@@ -415,6 +429,7 @@ const PaymentsPage = () => {
                     <TableCell onClick={() => handleAdminSort("upi_id")} sx={{ cursor: "pointer" }}>UPI ID <AdminSortIcon field="upi_id" /></TableCell>
                     <TableCell onClick={() => handleAdminSort("paid_at")} sx={{ cursor: "pointer" }}>Paid at <AdminSortIcon field="paid_at" /></TableCell>
                     <TableCell onClick={() => handleAdminSort("created_at")} sx={{ cursor: "pointer" }}>Created at <AdminSortIcon field="created_at" /></TableCell>
+                    <TableCell>Receipt</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -429,12 +444,13 @@ const PaymentsPage = () => {
                           <TableCell><Skeleton variant="text" width={100} height={24} /></TableCell>
                           <TableCell><Skeleton variant="text" width={80} height={24} /></TableCell>
                           <TableCell><Skeleton variant="text" width={100} height={24} /></TableCell>
+                          <TableCell><Skeleton variant="text" width={70} height={24} /></TableCell>
                         </TableRow>
                       ))}
                     </>
                   ) : sortedAdminPaymentList.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} align="center">
+                      <TableCell colSpan={8} align="center">
                         No payments found
                       </TableCell>
                     </TableRow>
@@ -456,6 +472,9 @@ const PaymentsPage = () => {
                         <TableCell>{p.upi_id ?? "—"}</TableCell>
                         <TableCell>{formatShortDate(p.paid_at)}</TableCell>
                         <TableCell>{formatDateTime(p.created_at)}</TableCell>
+                        <TableCell>
+                          <Link to={`/receipt/${p.uuid}`} onClick={(e) => e.stopPropagation()}>Receipt</Link>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -572,12 +591,21 @@ const PaymentsPage = () => {
                             }
                           >
                             {approvingUuid === n.uuid
-                              ? "Approving..."
+                              ? "Working..."
                               : paidNotificationUuids[n.uuid] === true
                                 ? "Paid"
                                 : n.is_paid === true
                                   ? "Paid"
-                                  : "Mark Paid"}
+                                  : "Approve"}
+                          </Button>
+                          <Button
+                            size="small"
+                            color="error"
+                            sx={{ ml: 1 }}
+                            onClick={() => handleRejectNotification(n.uuid)}
+                            disabled={approvingUuid === n.uuid || n.is_paid === true || paidNotificationUuids[n.uuid]}
+                          >
+                            Reject
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -655,6 +683,7 @@ const PaymentsPage = () => {
                   <TableCell>Month</TableCell>
                   <TableCell>Amount</TableCell>
                   <TableCell>Payment Method</TableCell>
+                  <TableCell>Receipt</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -667,12 +696,13 @@ const PaymentsPage = () => {
                         <TableCell><Skeleton variant="text" width={70} height={24} /></TableCell>
                         <TableCell><Skeleton variant="text" width={56} height={24} /></TableCell>
                         <TableCell><Skeleton variant="text" width={90} height={24} /></TableCell>
+                        <TableCell><Skeleton variant="text" width={70} height={24} /></TableCell>
                       </TableRow>
                     ))}
                   </>
                 ) : payments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4, color: "text.secondary" }}>
                       No payment records found
                     </TableCell>
                   </TableRow>
@@ -689,6 +719,9 @@ const PaymentsPage = () => {
                       <TableCell>{p.month != null && p.year != null ? `${p.month} ${p.year}` : "—"}</TableCell>
                       <TableCell>₹{p.amount ?? 0}</TableCell>
                       <TableCell>{p.payment_method || "—"}</TableCell>
+                      <TableCell>
+                        <Link to={`/receipt/${p.uuid}`} onClick={(e) => e.stopPropagation()}>Receipt</Link>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

@@ -315,6 +315,7 @@ function AdminUserEdit({ uuid, actorRole, onSuccess, onCancel }: { uuid: string;
                 <InputLabel>Role</InputLabel>
                 <Select value={formData.role} label="Role" onChange={(e) => handleChange("role", e.target.value)} disabled={roleLocked}>
                   <MenuItem value="USER">USER</MenuItem>
+                  <MenuItem value="METER_READER">METER READER</MenuItem>
                   <MenuItem value="ADMIN">ADMIN</MenuItem>
                   {showSuperAdminOption && <MenuItem value="SUPER_ADMIN">SUPER ADMIN</MenuItem>}
                 </Select>
@@ -323,6 +324,7 @@ function AdminUserEdit({ uuid, actorRole, onSuccess, onCancel }: { uuid: string;
                 <InputLabel>Status</InputLabel>
                 <Select value={formData.status} label="Status" onChange={(e) => handleChange("status", e.target.value)}>
                   <MenuItem value="ACTIVE">ACTIVE</MenuItem>
+                  <MenuItem value="DISCONNECTED">DISCONNECTED</MenuItem>
                   <MenuItem value="DELETED">DELETED</MenuItem>
                   <MenuItem value="REVOKE">REVOKE</MenuItem>
                 </Select>

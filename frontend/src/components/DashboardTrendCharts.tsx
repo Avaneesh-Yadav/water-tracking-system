@@ -36,12 +36,9 @@ function useDashboardChartChrome() {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const cardSx = {
-    borderRadius: 3,
-    border: "1px solid",
-    borderColor: "divider",
+    borderRadius: 4,
     overflow: "hidden",
-    bgcolor: "background.paper",
-    boxShadow: isDark ? "0 4px 24px rgba(0,0,0,0.35)" : "0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px rgba(15, 23, 42, 0.08)",
+    boxShadow: isDark ? "0 4px 24px rgba(0,0,0,0.35)" : "0 12px 32px rgba(15, 23, 42, 0.08)",
   };
   const headerSx = {
     pb: 1,
@@ -142,8 +139,8 @@ export function ConsumptionMonthCard({
 
   const literStop0 = theme.palette.mode === "dark" ? "#60a5fa" : "#3b82f6";
   const literStop1 = theme.palette.mode === "dark" ? "#1d4ed8" : "#1d4ed8";
-  const amountStop0 = theme.palette.mode === "dark" ? "#34d399" : "#10b981";
-  const amountStop1 = theme.palette.mode === "dark" ? "#059669" : "#047857";
+  const amountStop0 = theme.palette.mode === "dark" ? "#5eead4" : "#2dd4bf";
+  const amountStop1 = theme.palette.mode === "dark" ? "#0f766e" : "#0f766e";
 
   const chart = useMemo(
     () => (
@@ -256,8 +253,8 @@ export function PaymentsMonthCard({
 
   const axisMuted = theme.palette.text.secondary;
   const gridStroke = theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15, 23, 42, 0.07)";
-  const pay0 = theme.palette.mode === "dark" ? "#4ade80" : "#22c55e";
-  const pay1 = theme.palette.mode === "dark" ? "#15803d" : "#166534";
+  const pay0 = theme.palette.mode === "dark" ? "#5eead4" : "#14b8a6";
+  const pay1 = theme.palette.mode === "dark" ? "#0f766e" : "#0f766e";
 
   const chart = useMemo(
     () => (

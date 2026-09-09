@@ -1,36 +1,42 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Typography, Button } from "@mui/material";
+import { AuthShell } from "@/components/auth/AuthLayout";
 
 const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(to bottom right, #f44336, #e0e0e0)",
-        px: 2,
-      }}
-    >
-      <Box sx={{ maxWidth: 400, textAlign: "center" }}>
-        <Typography variant="h1" fontWeight="bold" color="primary.main" gutterBottom>
+    <AuthShell>
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 2,
+          width: "min(440px, 100%)",
+          p: 4,
+          borderRadius: "32px",
+          textAlign: "center",
+          bgcolor: "rgba(255,255,255,0.48)",
+          border: "1px solid rgba(255,255,255,0.62)",
+          backdropFilter: "blur(44px) saturate(180%)",
+          WebkitBackdropFilter: "blur(44px) saturate(180%)",
+          boxShadow: "0 28px 70px rgba(15, 23, 42, 0.18)",
+        }}
+      >
+        <Typography variant="h1" fontWeight={800} sx={{ color: "#0071e3", fontSize: "4rem", lineHeight: 1, mb: 1 }}>
           404
         </Typography>
-        <Typography variant="h5" fontWeight={600} color="text.primary" gutterBottom>
-          Page Not Found
+        <Typography variant="h5" fontWeight={700} sx={{ color: "#142028", mb: 1 }}>
+          Page not found
         </Typography>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Sorry, the page <Box component="span" sx={{ fontWeight: 600, color: "primary.main" }}>{location.pathname}</Box> does not exist or has been moved.
+        <Typography sx={{ mb: 3, color: "rgba(20, 32, 40, 0.62)" }}>
+          {location.pathname} does not exist or has been moved.
         </Typography>
         <Button variant="contained" size="large" onClick={() => navigate("/")}>
-          Go to Homepage
+          Go to homepage
         </Button>
       </Box>
-    </Box>
+    </AuthShell>
   );
 };
 

@@ -30,9 +30,16 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import MenuClose from "@mui/icons-material/Menu";
 import MenuOpen from "@mui/icons-material/MenuOpen";
 import ListIcon from "@mui/icons-material/List";
+import { isStaffRole, isOpsRole } from "@/utils/roles";
+import { useI18n } from "@/i18n/I18nProvider";
 import Assessment from "@mui/icons-material/Assessment";
 import CloudUpload from "@mui/icons-material/CloudUpload";
 import HelpOutline from "@mui/icons-material/HelpOutline";
+import ReceiptLong from "@mui/icons-material/ReceiptLong";
+import MapOutlined from "@mui/icons-material/Map";
+import SupportAgent from "@mui/icons-material/SupportAgent";
+import Speed from "@mui/icons-material/Speed";
+import Inbox from "@mui/icons-material/Inbox";
 import { logout as logoutService } from "@/services/accountService";
 import CreateUserDialog from "@/components/CreateUserDialog";
 
@@ -99,19 +106,26 @@ const Sidebar = ({
     if (isMobile) onClose?.();
   };
 
-  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+  const isAdmin = isStaffRole(role);
+  const canField = isOpsRole(role);
+  const { t } = useI18n();
   /** On mobile, always show full labels even if desktop sidebar was left collapsed */
   const showFullLabels = !collapsed || isMobile;
 
   const mainItems = [
-    { to: "/dashboard", label: "Dashboard", icon: <Home /> },
-    ...(isAdmin ? [{ to: "/consumers", label: "Consumers", icon: <People /> }] : []),
-    ...(isAdmin ? [{ to: "/employees", label: "Employee(s)", icon: <BadgeOutlined /> }] : []),
-    ...(isAdmin ? [{ to: "/reports", label: "Reports", icon: <Assessment /> }] : []),
-    ...(isAdmin ? [{ to: "/bulk", label: "Bulk ops", icon: <CloudUpload /> }] : []),
-    { to: "/consumption", label: "Consumption", icon: <WaterDrop /> },
-    { to: "/payments", label: "Payments", icon: <Payment /> },
-    { to: "/help", label: "Help", icon: <HelpOutline /> },
+    { to: "/dashboard", label: t("dashboard"), icon: <Home /> },
+    ...(isAdmin ? [{ to: "/consumers", label: t("consumers"), icon: <People /> }] : []),
+    ...(isAdmin ? [{ to: "/employees", label: t("employees"), icon: <BadgeOutlined /> }] : []),
+    ...(isAdmin ? [{ to: "/reports", label: t("reports"), icon: <Assessment /> }] : []),
+    ...(isAdmin ? [{ to: "/bulk", label: t("bulk"), icon: <CloudUpload /> }] : []),
+    ...(isAdmin ? [{ to: "/billing", label: t("billing"), icon: <ReceiptLong /> }] : []),
+    ...(canField ? [{ to: "/field", label: t("field"), icon: <Speed /> }] : []),
+    { to: "/service", label: t("service"), icon: <SupportAgent /> },
+    ...(canField ? [{ to: "/map", label: t("map"), icon: <MapOutlined /> }] : []),
+    { to: "/inbox", label: t("inbox"), icon: <Inbox /> },
+    { to: "/consumption", label: t("consumption"), icon: <WaterDrop /> },
+    { to: "/payments", label: t("payments"), icon: <Payment /> },
+    { to: "/help", label: t("help"), icon: <HelpOutline /> },
   ];
 
   const drawerContent = (
@@ -201,14 +215,13 @@ const Sidebar = ({
           const selected = isSelected(location.pathname, item.to, profileTo);
           const btn = (
             <ListItemButton
-              key={item.label}
               component={Link}
               to={item.to}
               selected={selected}
               onClick={handleNav}
               sx={{
               justifyContent: showFullLabels ? "flex-start" : "center",
-              borderRadius: 1,
+              borderRadius: 2.5,
               mx: showFullLabels ? 1 : 0.5,
                 transition: "background-color 0.2s ease, box-shadow 0.2s ease",
                 "&.Mui-selected": {
@@ -241,7 +254,7 @@ const Sidebar = ({
               {btn}
             </Tooltip>
           ) : (
-            btn
+            <React.Fragment key={item.label}>{btn}</React.Fragment>
           );
         })}
 
@@ -255,7 +268,7 @@ const Sidebar = ({
                 "&:hover": { bgcolor: navHoverBg },
                 justifyContent: "center",
                 px: 1.5,
-                borderRadius: 1,
+                borderRadius: 2.5,
                 mx: 0.5,
               }}
             >
@@ -272,7 +285,7 @@ const Sidebar = ({
               "&:hover": { bgcolor: navHoverBg },
               justifyContent: "flex-start",
               px: 2,
-              borderRadius: 1,
+              borderRadius: 2.5,
               mx: 1,
             }}
           >
@@ -334,7 +347,7 @@ const Sidebar = ({
               onClick={handleNav}
               sx={{
                 pl: 4,
-                borderRadius: 1,
+                borderRadius: 2.5,
                 mx: 1,
                 "&.Mui-selected": {
                   bgcolor: navSelectedBg,
@@ -359,7 +372,7 @@ const Sidebar = ({
                 }}
                 sx={{
                   pl: 4,
-                  borderRadius: 1,
+                  borderRadius: 2.5,
                   mx: 1,
                   "&:hover": { bgcolor: navHoverBg },
                   color: navTextDefault,
@@ -379,7 +392,7 @@ const Sidebar = ({
               onClick={handleNav}
               sx={{
                 pl: 4,
-                borderRadius: 1,
+                borderRadius: 2.5,
                 mx: 1,
                 "&.Mui-selected": {
                   bgcolor: navSelectedBg,
@@ -403,10 +416,10 @@ const Sidebar = ({
             <ListItemButton
               onClick={handleLogout}
               sx={{
-                color: "error.light",
-                "&:hover": { bgcolor: "error.dark", color: "white" },
+                color: "error.main",
+                "&:hover": { bgcolor: "rgba(211, 47, 47, 0.12)" },
                 justifyContent: "center",
-                borderRadius: 1,
+                borderRadius: 2.5,
                 mx: 0.5,
               }}
             >
@@ -419,10 +432,10 @@ const Sidebar = ({
           <ListItemButton
             onClick={handleLogout}
             sx={{
-              color: "error.light",
-              "&:hover": { bgcolor: "error.dark", color: "white" },
+              color: "error.main",
+              "&:hover": { bgcolor: "rgba(211, 47, 47, 0.12)" },
               justifyContent: "flex-start",
-              borderRadius: 1,
+              borderRadius: 2.5,
               mx: 1,
             }}
           >
@@ -454,6 +467,7 @@ const Sidebar = ({
           borderRight: "1px solid rgba(255,255,255,0.22)",
           top: 0,
           height: "100vh",
+          overflowY: "auto",
         },
       }}
     >
@@ -478,6 +492,7 @@ const Sidebar = ({
           borderRight: "none",
           top: 0,
           height: "100%",
+          overflowY: "auto",
         },
       }}
     >

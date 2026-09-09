@@ -529,6 +529,13 @@ export const approveAdminPaymentNotification = async (uuid: string): Promise<any
   return response.data;
 };
 
+export const rejectAdminPaymentNotification = async (uuid: string, reason?: string): Promise<any> => {
+  const response = await axiosInstance.post(`/admin/notifications/${encodeURIComponent(uuid)}/reject-payment`, {
+    reason: reason || "UTR could not be verified",
+  });
+  return response.data;
+};
+
 export const generatePaymentQR = async (consumptionUuid: string): Promise<QRData> => {
   try {
     const response = await axiosInstance.get(`/payment/qr/${encodeURIComponent(consumptionUuid)}`);

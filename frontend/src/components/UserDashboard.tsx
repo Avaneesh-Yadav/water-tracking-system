@@ -35,7 +35,8 @@ import {
   type DueSummary,
 } from "@/services/apiService";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { BillPreviewDialog } from "@/components/bill/BillPreviewDialog";
 import PaymentDialog from "@/components/PaymentDialog";
 import { ConsumptionMonthCard, PaymentsMonthCard } from "@/components/DashboardTrendCharts";
 import { DashboardHero, DashboardPanel, DashboardMetricRow } from "@/components/DashboardChrome";
@@ -50,6 +51,7 @@ const UserDashboard = () => {
   /** When paying "total due", list of unpaid consumption UUIDs to mark PAID so due amount updates */
   const [unpaidBillUuidsForPayment, setUnpaidBillUuidsForPayment] = useState<string[]>([]);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [previewUuid, setPreviewUuid] = useState<string | null>(null);
 
   const [userData, setUserData] = useState({
     name: "",
@@ -325,7 +327,13 @@ const UserDashboard = () => {
                 {dueSummary.unpaid_bills.slice(0, 5).map((b) => (
                   <Typography key={b.uuid} component="li" variant="body2" sx={{ mb: 0.75, color: "text.secondary" }}>
                     {b.month} {b.year}: ₹{Number(b.amount).toFixed(2)}{" "}
-                    <Link to={`/bill/${b.uuid}`} style={{ fontWeight: 700, color: "inherit" }}>Print bill</Link>
+                    <Button
+                      size="small"
+                      onClick={() => setPreviewUuid(b.uuid)}
+                      sx={{ fontWeight: 700, minWidth: 0, p: 0, verticalAlign: "baseline", textTransform: "none" }}
+                    >
+                      Print bill
+                    </Button>
                   </Typography>
                 ))}
                 {dueSummary.unpaid_bills.length > 5 && (
@@ -374,6 +382,11 @@ const UserDashboard = () => {
           setSelectedBill(null);
           setUnpaidBillUuidsForPayment([]);
         }}
+      />
+      <BillPreviewDialog
+        open={!!previewUuid}
+        consumptionUuid={previewUuid}
+        onClose={() => setPreviewUuid(null)}
       />
     </Box>
   );

@@ -1,42 +1,56 @@
 import { createTheme } from "@mui/material/styles";
 
-// Original water blue theme (as when collapse was added)
-const waterBlue = "#1565c0";
-const waterBlueLight = "#1976d2";
-const actionGray = "#616161";
-const backgroundWhite = "#ffffff";
+/** Match AquaFlow auth tokens so the logged-in app feels like the same product. */
+const waterBlue = "#0071e3";
+const waterBlueLight = "#38bdf8";
+const waterInk = "#142028";
+const backgroundWash = "#d7ebf5";
 
-export function getTheme(mode) {
+export function getTheme(mode: "light" | "dark") {
+  const dark = mode === "dark";
   return createTheme({
     palette: {
       mode: mode,
       background: {
-        default: backgroundWhite,
-        paper: backgroundWhite,
+        default: dark ? "#07141c" : backgroundWash,
+        paper: dark ? "#102530" : "#ffffff",
       },
       primary: {
         main: waterBlue,
         light: waterBlueLight,
-        dark: "#0d47a1",
+        dark: "#005bb5",
         contrastText: "#fff",
       },
       secondary: {
-        main: actionGray,
-        light: "#757575",
-        dark: "#424242",
-        contrastText: "#fff",
+        main: dark ? "#7dd3fc" : "#3d6b82",
+        light: "#5b8aa0",
+        dark: "#2a4d5e",
+        contrastText: dark ? "#07141c" : "#fff",
       },
-      success: { main: "#2e7d32" },
+      success: { main: "#0f766e" },
       error: { main: "#d32f2f" },
       warning: { main: "#ed6c02" },
+      text: {
+        primary: dark ? "#e8f1f6" : waterInk,
+        secondary: dark ? "rgba(232, 241, 246, 0.68)" : "rgba(20, 32, 40, 0.62)",
+      },
     },
-    shape: { borderRadius: 12 },
+    shape: { borderRadius: 16 },
+    typography: {
+      fontFamily: '"DM Sans", "Segoe UI", system-ui, sans-serif',
+      button: { textTransform: "none", fontWeight: 600 },
+    },
     components: {
-      // Select/Menu/Popover use Modal scroll-lock, which hides the scrollbar and
-      // adds padding-right. Combined with html { scrollbar-gutter: stable } that
-      // creates a right-side gap and shifts the whole UI left.
       MuiMenu: {
         defaultProps: { disableScrollLock: true },
+        styleOverrides: {
+            paper: {
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.94)" : "rgba(255, 255, 255, 0.94)",
+            color: dark ? "#e8f1f6" : undefined,
+            backdropFilter: "blur(20px) saturate(160%)",
+            WebkitBackdropFilter: "blur(20px) saturate(160%)",
+          },
+        },
       },
       MuiPopover: {
         defaultProps: { disableScrollLock: true },
@@ -51,25 +65,30 @@ export function getTheme(mode) {
       },
       MuiButton: {
         styleOverrides: {
-          root: { textTransform: "none" },
+          root: { textTransform: "none", borderRadius: 999 },
           contained: {
-            backgroundColor: actionGray,
+            backgroundColor: waterBlue,
             color: "#fff",
-            "&:hover": { backgroundColor: "#424242" },
+            boxShadow: "0 8px 22px rgba(0, 113, 227, 0.28)",
+            "&:hover": { backgroundColor: "#005bb5" },
           },
           containedPrimary: {
             backgroundColor: waterBlue,
-            "&:hover": { backgroundColor: "#0d47a1" },
+            "&:hover": { backgroundColor: "#005bb5" },
+          },
+          containedSecondary: {
+            backgroundColor: "#3d6b82",
+            "&:hover": { backgroundColor: "#2a4d5e" },
           },
         },
       },
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: "rgba(255, 255, 255, 0.14)",
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.72)" : "rgba(255, 255, 255, 0.42)",
             backdropFilter: "blur(34px) saturate(180%)",
             WebkitBackdropFilter: "blur(34px) saturate(180%)",
-            border: "1px solid rgba(255, 255, 255, 0.35)",
+            border: dark ? "1px solid rgba(125, 211, 252, 0.18)" : "1px solid rgba(255, 255, 255, 0.55)",
             boxShadow: "0 10px 40px rgba(2, 6, 23, 0.10)",
           },
         },
@@ -77,20 +96,39 @@ export function getTheme(mode) {
       MuiPaper: {
         styleOverrides: {
           root: {
-            backgroundColor: "rgba(255, 255, 255, 0.10)",
+            backgroundImage: "none",
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.88)" : "rgba(255, 255, 255, 0.78)",
             backdropFilter: "blur(34px) saturate(180%)",
             WebkitBackdropFilter: "blur(34px) saturate(180%)",
-            border: "1px solid rgba(255, 255, 255, 0.28)",
+            border: dark ? "1px solid rgba(125, 211, 252, 0.12)" : "1px solid rgba(255, 255, 255, 0.5)",
+          },
+        },
+      },
+      MuiTableContainer: {
+        styleOverrides: {
+          root: {
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.9)" : "rgba(255, 255, 255, 0.86)",
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: "rgba(255, 255, 255, 0.10)",
-            backgroundImage: `linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(186, 230, 253, 0.10))`,
+            backgroundColor: dark ? "rgba(7, 20, 28, 0.72)" : "rgba(255, 255, 255, 0.22)",
+            backgroundImage: dark
+              ? "linear-gradient(90deg, rgba(7, 20, 28, 0.8), rgba(14, 48, 64, 0.55))"
+              : `linear-gradient(90deg, rgba(255, 255, 255, 0.28), rgba(186, 230, 253, 0.18))`,
             backdropFilter: "blur(34px) saturate(180%)",
             WebkitBackdropFilter: "blur(34px) saturate(180%)",
+            color: dark ? "#e8f1f6" : waterInk,
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 24,
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.94)" : "rgba(255, 255, 255, 0.88)",
           },
         },
       },
