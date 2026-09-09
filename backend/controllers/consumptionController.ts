@@ -6,6 +6,9 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '../db/connection/connection';
 import WaterConsumption from '../models/WaterConsumption';
 import Settings from '../models/Settings';
+import { amountFromSlabs, parseSlabs } from '../utils/tariff';
+import { nextBillNumber } from '../utils/billNumber';
+import { settingGet } from '../utils/dbq';
 
 // Backward compatibility: API exposes both payment_status and status for consumption rows
 const mapConsumptionStatus = (r) => ({ ...r, status: r.payment_status ?? r.status });
@@ -58,7 +61,14 @@ export const addConsumption = async (req: AuthRequest, res: Response) => {
         });
 
         const uuid = uuidv4();
-        const meterOpts: WaterConsumptionCreateOptions = {};
+        const slabs = parseSlabs(await settingGet("tariff_slabs"));
+        const priced = amountFromSlabs(liters, slabs, parseFloat(rate));
+        const billNumber = await nextBillNumber();
+        const meterOpts: WaterConsumptionCreateOptions = {
+          bill_number: billNumber,
+          amount: priced.amount,
+          reading_status: "APPROVED",
+        };
         if (prev != null && !Number.isNaN(prev)) meterOpts.previous_meter_reading = prev;
         if (curr != null && !Number.isNaN(curr)) meterOpts.current_meter_reading = curr;
 
@@ -79,7 +89,7 @@ export const addConsumption = async (req: AuthRequest, res: Response) => {
                     });
                 }
 
-                const amount = liters * parseFloat(rate);
+                const amount = priced.amount;
                 res.status(201).json({
                     message: 'Consumption record created successfully',
                     consumption: {
@@ -90,8 +100,9 @@ export const addConsumption = async (req: AuthRequest, res: Response) => {
                         consumption_liters: liters,
                         previous_meter_reading: prev,
                         current_meter_reading: curr,
-                        rate_per_liter: parseFloat(rate),
+                        rate_per_liter: priced.effectiveRate,
                         amount,
+                        bill_number: billNumber,
                         status: 'UNPAID'
                     }
                 });

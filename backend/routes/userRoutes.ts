@@ -19,7 +19,9 @@ import * as analyticsController from "../controllers/analyticsController";
 import * as userDashboardController from "../controllers/userDashboardController";
 import * as exportController from "../controllers/exportController";
 import authenticate from "../middleware/authenticate";
+import * as opsController from "../controllers/opsController";
 import requireAdmin from "../middleware/requireAdmin";
+import { requireOps } from "../middleware/requireOps";
 import { auditAdmin } from "../middleware/auditAdmin";
 import type { AuthRequest } from "../types/express";
 
@@ -86,6 +88,7 @@ const uploadMeter = multer({
 // Public routes (no auth required)
 router.post('/register', registerController.registerUser);
 router.post('/login', logInController.loginUser);
+router.post('/login/2fa', logInController.verifyLogin2fa);
 router.post('/forgot-password', forgotPasswordController.forgotPassword);
 router.post('/verify-otp', forgotPasswordController.verifyOTP);
 router.post('/reset-password', forgotPasswordController.resetPassword);
@@ -95,15 +98,14 @@ router.post('/refresh-token', tokenController.refreshToken);
 router.get('/settings/rate', settingsController.getRatePerLiter);
 // Get branding settings (public - for app name, footer, bills)
 router.get('/settings/branding', settingsController.getBrandingSettings);
+router.post('/public/connection-applications', opsController.createApplication);
 
 // Middleware for protected routes
 router.use(authenticate);
 
 // Protected routes - User
 router.post('/logout', logoutController.logoutUser);
-router.get("/profile", (req: AuthRequest, res: Response) => {
-  res.json(req.user);
-});
+router.get("/profile", userController.getProfile);
 router.put('/profile/update', userController.updateProfile);
 
 // Consumption routes - User
@@ -119,6 +121,16 @@ router.post('/payment/notify-completed', notificationController.createPaymentNot
 router.get('/payment/qr/:consumption_uuid', paymentController.generatePaymentQR);
 router.get('/payment/total', paymentController.getTotalPaid);
 router.get('/notifications', notificationController.getMyNotifications);
+router.put('/notifications/:uuid/read', opsController.markMyNotificationRead);
+router.put('/notifications/mark-all-read', opsController.markAllMyNotificationsRead);
+router.post('/tickets', opsController.createTicket);
+router.get('/tickets', opsController.listTickets);
+router.get('/connections/mine', opsController.myConnections);
+router.post('/connection-applications', opsController.createApplication);
+
+router.post('/security/2fa/begin', opsController.beginTotp);
+router.post('/security/2fa/confirm', opsController.confirmTotp);
+router.post('/security/2fa/disable', opsController.disableTotp);
 
 // User profile by UUID: admin can see any user; regular user can only see self
 router.get('/user/:uuid', requireAdminOrSelf, userController.getUserByUuid);
@@ -159,6 +171,7 @@ router.get('/admin/notifications/user/:user_uuid/unread-count', requireAdmin, no
 router.put('/admin/notifications/mark-all-read', requireAdmin, notificationController.markAllPaymentNotificationsReadAdmin);
 router.put('/admin/notifications/user/:user_uuid/mark-all-read', requireAdmin, notificationController.markAllPaymentNotificationsReadByUserAdmin);
 router.put('/admin/notifications/:uuid/read', requireAdmin, notificationController.markNotificationReadAdmin);
+router.post('/admin/notifications/:uuid/reject-payment', requireAdmin, notificationController.rejectPaymentNotificationAdmin);
 router.post('/admin/notifications/:uuid/approve-payment', requireAdmin, notificationController.approvePaymentNotificationAdmin);
 
 // Admin-only routes - Settings
@@ -187,6 +200,34 @@ router.get('/admin/analytics/payment-methods', requireAdmin, analyticsController
 router.get('/admin/analytics/collection-efficiency', requireAdmin, analyticsController.getCollectionEfficiency);
 
 router.get('/admin/export/consumers', requireAdmin, exportController.exportConsumers);
+
+// Ops suite
+router.get('/admin/ops/settings', requireAdmin, opsController.getOpsSettings);
+router.put('/admin/ops/settings', requireAdmin, opsController.updateOpsSettings);
+router.post('/admin/ops/bill-run', requireAdmin, opsController.runBillCycle);
+router.post('/admin/ops/late-fees', requireAdmin, opsController.applyLateFees);
+router.post('/admin/ops/credit-note', requireAdmin, opsController.creditNote);
+router.post('/admin/ops/deposit', requireAdmin, opsController.adjustDeposit);
+router.post('/admin/ops/pay-from-deposit', requireAdmin, opsController.payFromDeposit);
+router.get('/admin/ops/print-pack', requireAdmin, opsController.printPack);
+router.get('/admin/ops/board-pack', requireAdmin, opsController.boardPack);
+router.post('/admin/ops/reminders', requireAdmin, opsController.sendReminders);
+router.post('/admin/ops/extra-connection', requireAdmin, opsController.extraConnection);
+router.get('/admin/ops/applications', requireAdmin, opsController.listApplications);
+router.post('/admin/ops/applications/:uuid/decide', requireAdmin, opsController.decideApplication);
+router.post('/admin/ops/connection-status', requireAdmin, opsController.setConnectionStatus);
+router.patch('/admin/ops/tickets/:uuid', requireAdmin, opsController.updateTicket);
+
+router.get('/ops/leaks', requireOps, opsController.leakAlerts);
+router.post('/ops/readings', requireOps, opsController.submitReading);
+router.get('/ops/readings/pending', requireAdmin, opsController.pendingReadings);
+router.post('/ops/readings/:uuid/decide', requireAdmin, opsController.decideReading);
+router.get('/ops/routes', requireOps, opsController.listRoutes);
+router.post('/ops/routes', requireAdmin, opsController.saveRoute);
+router.get('/ops/my-route', requireOps, opsController.myRoute);
+router.get('/ops/meters', requireOps, opsController.meterMaster);
+router.put('/ops/meters/:uuid', requireAdmin, opsController.updateMeter);
+router.get('/ops/map', requireOps, opsController.mapPoints);
 
 export default router;
 

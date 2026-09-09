@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import pool from '../db/connection/connection';
+import { verifyTotp } from '../utils/totp';
 
 
 function getPaymentStatusForUser(user_uuid, callback) {
@@ -54,13 +55,28 @@ export const loginUser = async (req: AuthRequest, res: Response) => {
       const user = results[0];
       console.log("User" ,user.status);
       
-       if(user.status == 'REVOKE'){
-        return res.status(400).json({ message: 'Your account has been revoked. Please contact the administrator.' });
+       if(user.status == 'REVOKE' || user.status == 'DISCONNECTED'){
+        return res.status(400).json({ message: user.status == 'DISCONNECTED'
+          ? 'Your connection is disconnected. Please contact the water office.'
+          : 'Your account has been revoked. Please contact the administrator.' });
        }
       const isMatch = await bcrypt.compare(password, user.password);
 
       if (!isMatch) {
         return res.status(400).json({ message: 'Invalid credentials.' });
+      }
+
+      if (Number(user.totp_enabled) === 1) {
+        const pendingToken = jwt.sign(
+          { uuid: user.uuid, tfaPending: true, role: user.role },
+          JWT_SECRET,
+          { expiresIn: "5m" }
+        );
+        return res.status(200).json({
+          message: "Enter your authenticator code",
+          requires2fa: true,
+          pendingToken,
+        });
       }
 
       // Generate access token (configurable, default 24h)
@@ -124,6 +140,67 @@ export const loginUser = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ message: 'Error logging in.' });
+  }
+};
+
+export const verifyLogin2fa = async (req: AuthRequest, res: Response) => {
+  const { pendingToken, code } = req.body || {};
+  if (!pendingToken || !code) {
+    return res.status(400).json({ message: "pendingToken and code are required." });
+  }
+  try {
+    const decoded = jwt.verify(pendingToken, JWT_SECRET) as { uuid: string; tfaPending?: boolean; role?: string };
+    if (!decoded?.tfaPending || !decoded.uuid) {
+      return res.status(400).json({ message: "Invalid 2FA session." });
+    }
+    pool.query("SELECT * FROM users WHERE uuid = ?", [decoded.uuid], async (err, results: any[]) => {
+      if (err || !results?.[0]) return res.status(400).json({ message: "User not found." });
+      const user = results[0];
+      if (!verifyTotp(user.totp_secret, String(code))) {
+        return res.status(400).json({ message: "Invalid authenticator code." });
+      }
+      const accessToken = jwt.sign(
+        { uuid: user.uuid, role: user.role, name: user.full_name },
+        JWT_SECRET,
+        { expiresIn: ACCESS_EXPIRY }
+      );
+      const refreshToken = jwt.sign(
+        { uuid: user.uuid, role: user.role },
+        REFRESH_SECRET,
+        { expiresIn: REFRESH_EXPIRY }
+      );
+      pool.query("UPDATE users SET refresh_token = ? WHERE uuid = ?", [refreshToken, user.uuid], () => {});
+      getPaymentStatusForUser(user.uuid, (statusErr, paymentStatus) => {
+        if (statusErr) paymentStatus = "COMPLETED";
+        res.cookie("token", accessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: maxAgeMs(ACCESS_EXPIRY),
+        });
+        res.cookie("refreshToken", refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: maxAgeMs(REFRESH_EXPIRY),
+        });
+        res.status(200).json({
+          message: "Login successful.",
+          user: {
+            fullName: user.full_name,
+            uuid: user.uuid,
+            mobileNumber: user.mobile_number,
+            role: user.role,
+            address: user.address,
+            connectionId: user.connection_id,
+            status: user.status,
+            paymentStatus,
+          },
+        });
+      });
+    });
+  } catch {
+    return res.status(400).json({ message: "2FA session expired. Sign in again." });
   }
 };
 

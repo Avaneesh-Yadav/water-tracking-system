@@ -43,8 +43,8 @@ export const getAllUsers = (req: AuthRequest, res: Response) => {
     const statusParam = queryString(req.query.status).trim().toUpperCase();
     const filters: UserFilterOptions = {};
     if (q) filters.q = q;
-    if (roleParam === 'USER' || roleParam === 'ADMIN' || roleParam === 'SUPER_ADMIN' || roleParam === 'STAFF') filters.role = roleParam;
-    if (['ACTIVE', 'DELETED', 'REVOKE'].includes(statusParam)) filters.status = statusParam;
+    if (roleParam === 'USER' || roleParam === 'ADMIN' || roleParam === 'SUPER_ADMIN' || roleParam === 'STAFF' || roleParam === 'METER_READER') filters.role = roleParam;
+    if (['ACTIVE', 'DELETED', 'REVOKE', 'DISCONNECTED'].includes(statusParam)) filters.status = statusParam;
 
     const hasPagination = req.query.page != null || req.query.limit != null;
     const page = Math.max(1, parseInt(queryString(req.query.page), 10) || 1);
@@ -256,4 +256,17 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         console.error('Exception in updateProfile:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
+};
+
+export const getProfile = (req: AuthRequest, res: Response) => {
+    pool.query(
+        "SELECT totp_enabled FROM users WHERE uuid = ?",
+        [req.user?.uuid],
+        (err, rows: any[]) => {
+            res.json({
+                ...req.user,
+                totp_enabled: !err && Number(rows?.[0]?.totp_enabled) === 1,
+            });
+        }
+    );
 };

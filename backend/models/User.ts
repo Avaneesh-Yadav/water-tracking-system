@@ -96,15 +96,15 @@ class User {
         if (filters.role) {
             const r = String(filters.role).toUpperCase();
             if (r === 'STAFF') {
-                conditions.push("UPPER(TRIM(role)) IN ('ADMIN', 'SUPER_ADMIN')");
-            } else if (r === 'USER' || r === 'ADMIN' || r === 'SUPER_ADMIN') {
+                conditions.push("UPPER(TRIM(role)) IN ('ADMIN', 'SUPER_ADMIN', 'METER_READER')");
+            } else if (r === 'USER' || r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'METER_READER') {
                 conditions.push('UPPER(TRIM(role)) = ?');
                 params.push(r);
             }
         }
         if (filters.status) {
             const s = String(filters.status).toUpperCase();
-            if (['ACTIVE', 'DELETED', 'REVOKE'].includes(s)) {
+            if (['ACTIVE', 'DELETED', 'REVOKE', 'DISCONNECTED', 'PENDING'].includes(s)) {
                 conditions.push('status = ?');
                 params.push(s);
             }

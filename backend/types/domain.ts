@@ -133,6 +133,9 @@ export interface WaterConsumptionCreateOptions {
   previous_meter_reading?: number | string | null;
   current_meter_reading?: number | string | null;
   meter_photo_path?: string | null;
+  amount?: number | null;
+  bill_number?: string | null;
+  reading_status?: string | null;
 }
 
 export interface WaterConsumptionUpdateOptions {
@@ -144,6 +147,7 @@ export interface WaterConsumptionUpdateOptions {
 export interface JwtUserPayload {
   uuid: string;
   role: UserRole | string;
+  name?: string;
   fullName?: string;
   mobileNumber?: string;
   iat?: number;

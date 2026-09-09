@@ -2,6 +2,7 @@ export const ROLES = {
   USER: "USER",
   ADMIN: "ADMIN",
   SUPER_ADMIN: "SUPER_ADMIN",
+  METER_READER: "METER_READER",
 } as const;
 
 export type AppUserRole = (typeof ROLES)[keyof typeof ROLES];
@@ -23,9 +24,17 @@ export function isStaffRole(role?: string | null): boolean {
   return r === ROLES.ADMIN || r === ROLES.SUPER_ADMIN;
 }
 
+export function isMeterReader(role?: string | null): boolean {
+  return normalizeRole(role) === ROLES.METER_READER;
+}
+
+export function isOpsRole(role?: string | null): boolean {
+  return isStaffRole(role) || isMeterReader(role);
+}
+
 export function isValidAssignableRole(role?: string | null): boolean {
   const r = normalizeRole(role);
-  return r === ROLES.USER || r === ROLES.ADMIN || r === ROLES.SUPER_ADMIN;
+  return r === ROLES.USER || r === ROLES.ADMIN || r === ROLES.SUPER_ADMIN || r === ROLES.METER_READER;
 }
 
 /** First Super Admin may be created by an Admin; later ones only by Super Admin. */

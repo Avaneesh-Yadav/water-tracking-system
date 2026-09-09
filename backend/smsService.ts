@@ -308,6 +308,16 @@ class SMSService {
     const message = `Payment of ₹${amount} received for ${billMonth}. Thank you for using AquaFlow water management system.`;
     return await this.sendSMS(mobileNumber, message);
   }
+
+  async sendBillGenerated(mobileNumber, name, month, year, amount) {
+    const message = `AquaFlow: Hi ${name || "consumer"}, your water bill for ${month} ${year} is ₹${Number(amount).toFixed(2)}. Pay in the app via UPI.`;
+    return await this.sendSMS(mobileNumber, message);
+  }
+
+  async sendDueReminder(mobileNumber, name, amount, dueDay) {
+    const message = `AquaFlow reminder: ${name || "Consumer"}, ₹${Number(amount).toFixed(2)} is due by the ${dueDay}th. Pay in the AquaFlow app.`;
+    return await this.sendSMS(mobileNumber, message);
+  }
 }
 
 export default new SMSService();

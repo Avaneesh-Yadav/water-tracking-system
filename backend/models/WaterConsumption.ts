@@ -40,16 +40,18 @@ class WaterConsumption {
         }
         const now = new Date();
         const payment_status = 'UNPAID';
-        const amount = consumption_liters * rate_per_liter;
+        const amount = opts.amount != null ? Number(opts.amount) : consumption_liters * rate_per_liter;
         const prev = opts.previous_meter_reading != null ? parseFloat(String(opts.previous_meter_reading)) : null;
         const curr = opts.current_meter_reading != null ? parseFloat(String(opts.current_meter_reading)) : null;
         const photo = opts.meter_photo_path || null;
+        const billNumber = opts.bill_number || null;
+        const readingStatus = opts.reading_status || 'APPROVED';
 
         pool.query(
             `INSERT INTO water_consumption 
-            (uuid, user_uuid, month, year, consumption_liters, previous_meter_reading, current_meter_reading, meter_photo_path, rate_per_liter, amount, payment_status, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [uuid, user_uuid, month, year, consumption_liters, prev, curr, photo, rate_per_liter, amount, payment_status, now, now],
+            (uuid, user_uuid, month, year, consumption_liters, previous_meter_reading, current_meter_reading, meter_photo_path, rate_per_liter, amount, payment_status, bill_number, reading_status, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [uuid, user_uuid, month, year, consumption_liters, prev, curr, photo, rate_per_liter, amount, payment_status, billNumber, readingStatus, now, now],
             callback
         );
     }

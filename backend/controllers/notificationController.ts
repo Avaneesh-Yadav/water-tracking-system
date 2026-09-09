@@ -84,7 +84,10 @@ export const createPaymentNotification = async (req: AuthRequest, res: Response)
         const totalAmount = parseFloat(amount);
         const paymentMethod = payment_method || 'UPI';
         const upiId = upi_id || null;
-        const msg = message || null;
+        const msg = String(message || "").trim();
+        if (msg.replace(/\s+/g, "").length < 6) {
+            return res.status(400).json({ message: "Enter your UPI UTR / reference number (at least 6 characters)." });
+        }
 
         // When paying total due, split into one notification per consumption UUID
         // so admin marks bills individually instead of paying everything at once.
@@ -238,6 +241,26 @@ export const markNotificationReadAdmin = (req: AuthRequest, res: Response) => {
             return res.status(500).json({ message: 'Failed to update notification' });
         }
         return res.status(200).json({ message: 'Notification marked as read' });
+    });
+};
+
+export const rejectPaymentNotificationAdmin = (req: AuthRequest, res: Response) => {
+    const { uuid } = req.params;
+    const reason = String(req.body?.reason || "Payment could not be verified");
+    Notification.getByUuid(uuid, (findErr, rows) => {
+        if (findErr) return res.status(500).json({ message: "Failed to process notification" });
+        const notification = rows?.[0];
+        if (!notification) return res.status(404).json({ message: "Notification not found" });
+        Notification.markRead(uuid, (markErr) => {
+            if (markErr) return res.status(500).json({ message: "Failed to update notification" });
+            Notification.create(
+                uuidv4(),
+                notification.user_id,
+                JSON.stringify({ title: "Payment rejected", body: reason }),
+                "PAYMENT_REJECTED",
+                () => res.status(200).json({ message: "Payment rejected" })
+            );
+        });
     });
 };
 
