@@ -14,8 +14,8 @@
   position: absolute;
   inset: -4%;
   background: url("https://images.unsplash.com/photo-1505142468610-359e7d316be0?auto=format&fit=crop&w=1920&q=80") center / cover no-repeat;
-  opacity: 0.42;
-  filter: saturate(1.2) brightness(0.98) contrast(1.07);
+  opacity: 0.22;
+  filter: saturate(1.05) brightness(1) contrast(1);
   animation: lg-bg-drift 26s ease-in-out infinite alternate;
 }
 
@@ -25,8 +25,8 @@
   width: 116%;
   height: 116%;
   object-fit: cover;
-  opacity: 0.62;
-  filter: saturate(1.25) brightness(0.88) contrast(1.10);
+  opacity: 0.28;
+  filter: saturate(1.05) brightness(0.95) contrast(1);
   animation: lg-bg-drift 34s ease-in-out infinite alternate-reverse;
 }
 
@@ -40,7 +40,7 @@
   position: absolute;
   border-radius: 40% 60% 65% 35% / 45% 55% 45% 55%;
   filter: blur(48px);
-  opacity: 0.68;
+  opacity: 0.4;
   animation: lg-liquid-morph 14s ease-in-out infinite;
 }
 
@@ -81,7 +81,7 @@
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.55;
+  opacity: 0.35;
   animation: lg-mesh-float 16s ease-in-out infinite alternate;
 }
 
@@ -122,9 +122,19 @@
   inset: 0;
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.28) 0%,
-    rgba(240, 249, 255, 0.12) 45%,
-    rgba(0, 113, 227, 0.14) 100%
+    rgba(255, 255, 255, 0.62) 0%,
+    rgba(240, 249, 255, 0.5) 45%,
+    rgba(215, 235, 245, 0.55) 100%
+  );
+}
+
+/* Dark mode: a deep wash instead of white so the background recedes behind the panels. */
+.lg-atmosphere--dark .lg-tint {
+  background: linear-gradient(
+    145deg,
+    rgba(7, 20, 28, 0.72) 0%,
+    rgba(7, 20, 28, 0.62) 45%,
+    rgba(14, 48, 64, 0.66) 100%
   );
 }
 

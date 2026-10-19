@@ -85,10 +85,10 @@ export function getTheme(mode: "light" | "dark") {
       MuiCard: {
         styleOverrides: {
           root: {
-            backgroundColor: dark ? "rgba(16, 37, 48, 0.72)" : "rgba(255, 255, 255, 0.42)",
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.9)" : "rgba(255, 255, 255, 0.86)",
             backdropFilter: "blur(34px) saturate(180%)",
             WebkitBackdropFilter: "blur(34px) saturate(180%)",
-            border: dark ? "1px solid rgba(125, 211, 252, 0.18)" : "1px solid rgba(255, 255, 255, 0.55)",
+            border: dark ? "1px solid rgba(125, 211, 252, 0.18)" : "1px solid rgba(20, 32, 40, 0.08)",
             boxShadow: "0 10px 40px rgba(2, 6, 23, 0.10)",
           },
         },
@@ -97,27 +97,27 @@ export function getTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             backgroundImage: "none",
-            backgroundColor: dark ? "rgba(16, 37, 48, 0.88)" : "rgba(255, 255, 255, 0.78)",
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.94)" : "rgba(255, 255, 255, 0.92)",
             backdropFilter: "blur(34px) saturate(180%)",
             WebkitBackdropFilter: "blur(34px) saturate(180%)",
-            border: dark ? "1px solid rgba(125, 211, 252, 0.12)" : "1px solid rgba(255, 255, 255, 0.5)",
+            border: dark ? "1px solid rgba(125, 211, 252, 0.12)" : "1px solid rgba(20, 32, 40, 0.08)",
           },
         },
       },
       MuiTableContainer: {
         styleOverrides: {
           root: {
-            backgroundColor: dark ? "rgba(16, 37, 48, 0.9)" : "rgba(255, 255, 255, 0.86)",
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.96)" : "rgba(255, 255, 255, 0.96)",
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: dark ? "rgba(7, 20, 28, 0.72)" : "rgba(255, 255, 255, 0.22)",
+            backgroundColor: dark ? "rgba(7, 20, 28, 0.85)" : "rgba(255, 255, 255, 0.82)",
             backgroundImage: dark
-              ? "linear-gradient(90deg, rgba(7, 20, 28, 0.8), rgba(14, 48, 64, 0.55))"
-              : `linear-gradient(90deg, rgba(255, 255, 255, 0.28), rgba(186, 230, 253, 0.18))`,
+              ? "linear-gradient(90deg, rgba(7, 20, 28, 0.9), rgba(14, 48, 64, 0.8))"
+              : `linear-gradient(90deg, rgba(255, 255, 255, 0.88), rgba(224, 242, 254, 0.82))`,
             backdropFilter: "blur(34px) saturate(180%)",
             WebkitBackdropFilter: "blur(34px) saturate(180%)",
             color: dark ? "#e8f1f6" : waterInk,
@@ -128,7 +128,7 @@ export function getTheme(mode: "light" | "dark") {
         styleOverrides: {
           paper: {
             borderRadius: 24,
-            backgroundColor: dark ? "rgba(16, 37, 48, 0.94)" : "rgba(255, 255, 255, 0.88)",
+            backgroundColor: dark ? "rgba(16, 37, 48, 0.97)" : "rgba(255, 255, 255, 0.97)",
           },
         },
       },

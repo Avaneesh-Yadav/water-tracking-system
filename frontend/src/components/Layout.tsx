@@ -65,7 +65,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <Box sx={{ display: "flex", height: "100vh", bgcolor: "transparent", position: "relative", overflow: "hidden" }}>
-      <LiquidGlassAtmosphere />
+      <LiquidGlassAtmosphere dark={dark} />
       <Sidebar
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -84,10 +84,10 @@ const Layout = ({ children }: LayoutProps) => {
             left: { xs: 0, md: sidebarWidth },
             width: { xs: "100%", md: `calc(100% - ${sidebarWidth}px)` },
             boxShadow: "0 2px 18px rgba(0,0,0,0.18)",
-            backgroundColor: dark ? "rgba(7, 20, 28, 0.55)" : "rgba(255,255,255,0.10)",
+            backgroundColor: dark ? "rgba(7, 20, 28, 0.85)" : "rgba(255,255,255,0.82)",
             backgroundImage: dark
-              ? "linear-gradient(90deg, rgba(7, 20, 28, 0.8), rgba(14, 48, 64, 0.55))"
-              : "linear-gradient(90deg, rgba(255,255,255,0.14), rgba(186, 230, 253, 0.10))",
+              ? "linear-gradient(90deg, rgba(7, 20, 28, 0.9), rgba(14, 48, 64, 0.8))"
+              : "linear-gradient(90deg, rgba(255,255,255,0.88), rgba(224, 242, 254, 0.82))",
             backdropFilter: "blur(34px) saturate(180%)",
             WebkitBackdropFilter: "blur(34px) saturate(180%)",
             color: dark ? "#e8f1f6" : "#142028",
