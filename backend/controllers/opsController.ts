@@ -1,7 +1,10 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../types/express";
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { dbq, settingGet, settingSet } from "../utils/dbq";
+import pool from "../db/connection/connection";
 import { amountFromSlabs, lateFeeFor, parseSlabs } from "../utils/tariff";
 import { nextBillNumber } from "../utils/billNumber";
 import { generateTotpSecret, otpauthUrl, verifyTotp } from "../utils/totp";
@@ -90,11 +93,12 @@ export async function runBillCycle(req: AuthRequest, res: Response) {
     let numbered = 0;
     let sms = 0;
     for (const row of rows) {
-      if (!row.bill_number) {
-        const num = await nextBillNumber();
-        await dbq("UPDATE water_consumption SET bill_number = ? WHERE uuid = ?", [num, row.uuid]);
-        numbered += 1;
-      }
+      // Only newly numbered bills get an SMS/inbox notice, so re-running the cycle
+      // for the same month does not re-spam every consumer.
+      if (row.bill_number) continue;
+      const num = await nextBillNumber();
+      await dbq("UPDATE water_consumption SET bill_number = ? WHERE uuid = ?", [num, row.uuid]);
+      numbered += 1;
       try {
         await smsService.sendBillGenerated(row.mobile_number, row.full_name, month, year, row.amount);
         sms += 1;
@@ -194,28 +198,43 @@ export async function adjustDeposit(req: AuthRequest, res: Response) {
 }
 
 export async function payFromDeposit(req: AuthRequest, res: Response) {
+  const { consumption_uuid } = req.body;
+  if (!consumption_uuid) return res.status(400).json({ message: "consumption_uuid required" });
+  const conn = await pool.promise().getConnection();
   try {
-    const { consumption_uuid } = req.body;
-    const rows = await dbq<any[]>(
-      `SELECT wc.*, u.deposit_balance FROM water_consumption wc JOIN users u ON u.uuid = wc.user_uuid WHERE wc.uuid = ?`,
+    await conn.beginTransaction();
+    // Lock the user row so two concurrent requests cannot both spend the same balance.
+    const [rows] = await conn.query<any[]>(
+      `SELECT wc.*, u.deposit_balance FROM water_consumption wc
+       JOIN users u ON u.uuid = wc.user_uuid WHERE wc.uuid = ? FOR UPDATE`,
       [consumption_uuid]
     );
     const bill = rows[0];
-    if (!bill) return res.status(404).json({ message: "Bill not found" });
+    if (!bill) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Bill not found" });
+    }
     const due = Math.max(0, Number(bill.amount) - Number(bill.paid_amount || 0));
     const take = Math.min(due, Number(bill.deposit_balance) || 0);
-    if (take <= 0) return res.status(400).json({ message: "Nothing to apply from deposit" });
+    if (take <= 0) {
+      await conn.rollback();
+      return res.status(400).json({ message: "Nothing to apply from deposit" });
+    }
     const paid = Number(bill.paid_amount || 0) + take;
     const status = paid >= Number(bill.amount) ? "PAID" : "UNPAID";
-    await dbq("UPDATE water_consumption SET paid_amount = ?, payment_status = ? WHERE uuid = ?", [
+    await conn.query("UPDATE water_consumption SET paid_amount = ?, payment_status = ? WHERE uuid = ?", [
       paid,
       status,
       consumption_uuid,
     ]);
-    await dbq("UPDATE users SET deposit_balance = deposit_balance - ? WHERE uuid = ?", [take, bill.user_uuid]);
+    await conn.query("UPDATE users SET deposit_balance = deposit_balance - ? WHERE uuid = ?", [take, bill.user_uuid]);
+    await conn.commit();
     res.json({ message: "Deposit applied", applied: take, payment_status: status });
   } catch (e: any) {
+    await conn.rollback().catch(() => {});
     res.status(500).json({ message: e.message || "Failed to apply deposit" });
+  } finally {
+    conn.release();
   }
 }
 
@@ -287,7 +306,19 @@ export async function submitReading(req: AuthRequest, res: Response) {
       [user_uuid, month, year]
     );
     if (exists[0]) return res.status(409).json({ message: "A reading already exists for this period" });
-    const prev = previous_meter_reading != null ? parseFloat(previous_meter_reading) : 0;
+    // Fall back to the last completed reading so a blank field never bills the full meter dial.
+    let prev: number;
+    if (previous_meter_reading != null && String(previous_meter_reading).trim() !== "") {
+      prev = parseFloat(previous_meter_reading);
+    } else {
+      const last = await dbq<any[]>(
+        `SELECT current_meter_reading FROM water_consumption
+         WHERE user_uuid = ? AND current_meter_reading IS NOT NULL
+         ORDER BY year DESC, created_at DESC LIMIT 1`,
+        [user_uuid]
+      );
+      prev = Number(last[0]?.current_meter_reading) || 0;
+    }
     const curr = parseFloat(current_meter_reading);
     if (Number.isNaN(curr) || curr < prev) {
       return res.status(400).json({ message: "Current reading must be >= previous" });
@@ -303,7 +334,7 @@ export async function submitReading(req: AuthRequest, res: Response) {
       `INSERT INTO water_consumption
        (uuid, user_uuid, month, year, consumption_liters, previous_meter_reading, current_meter_reading,
         rate_per_liter, amount, payment_status, reading_status, submitted_by, bill_number, paid_amount, late_fee, credit_note, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,'UNPAID',?,?,?,?,0,?, ?, ?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,'UNPAID',?,?,?,0,0,?,?,?)`,
       [
         uuid,
         user_uuid,
@@ -355,11 +386,19 @@ export async function decideReading(req: AuthRequest, res: Response) {
     const rows = await dbq<any[]>("SELECT * FROM water_consumption WHERE uuid = ?", [uuid]);
     if (!rows[0]) return res.status(404).json({ message: "Reading not found" });
     if (approve) {
+      // Only a reading still awaiting review can be approved. Without this guard a
+      // double-click re-approves an already-billed row and texts the consumer twice.
+      if (String(rows[0].reading_status).toUpperCase() !== "PENDING_REVIEW") {
+        return res.status(409).json({ message: "This reading has already been decided" });
+      }
       const num = rows[0].bill_number || (await nextBillNumber());
-      await dbq("UPDATE water_consumption SET reading_status = 'APPROVED', bill_number = ? WHERE uuid = ?", [
-        num,
-        uuid,
-      ]);
+      const result = await dbq<any>(
+        "UPDATE water_consumption SET reading_status = 'APPROVED', bill_number = ? WHERE uuid = ? AND reading_status = 'PENDING_REVIEW'",
+        [num, uuid]
+      );
+      if (!result?.affectedRows) {
+        return res.status(409).json({ message: "This reading has already been decided" });
+      }
       const user = await dbq<any[]>("SELECT mobile_number, full_name FROM users WHERE uuid = ?", [rows[0].user_uuid]);
       try {
         await smsService.sendBillGenerated(
@@ -424,6 +463,17 @@ export async function saveRoute(req: AuthRequest, res: Response) {
       i + 1,
     ]);
   }
+  // Drop reader assignment from consumers that were removed from this route,
+  // otherwise they stay in the reader's scoped queries forever.
+  const placeholders = stops.map(() => "?").join(",");
+  if (stops.length) {
+    await dbq(
+      `UPDATE users SET assigned_reader_uuid = NULL WHERE assigned_reader_uuid IS NOT NULL AND uuid NOT IN (${placeholders})`,
+      stops
+    );
+  } else {
+    await dbq("UPDATE users SET assigned_reader_uuid = NULL WHERE assigned_reader_uuid IS NOT NULL");
+  }
   if (reader_uuid) {
     for (const uid of stops) {
       await dbq("UPDATE users SET assigned_reader_uuid = ? WHERE uuid = ?", [reader_uuid, uid]);
@@ -463,29 +513,29 @@ export async function meterMaster(req: AuthRequest, res: Response) {
 
 export async function updateMeter(req: AuthRequest, res: Response) {
   const { uuid } = req.params;
-  const { meter_number, meter_installed_at, meter_status, latitude, longitude, ward, assigned_reader_uuid } =
-    req.body || {};
-  await dbq(
-    `UPDATE users SET
-      meter_number = COALESCE(?, meter_number),
-      meter_installed_at = COALESCE(?, meter_installed_at),
-      meter_status = COALESCE(?, meter_status),
-      latitude = COALESCE(?, latitude),
-      longitude = COALESCE(?, longitude),
-      ward = COALESCE(?, ward),
-      assigned_reader_uuid = COALESCE(?, assigned_reader_uuid)
-     WHERE uuid = ?`,
-    [
-      meter_number ?? null,
-      meter_installed_at ?? null,
-      meter_status ?? null,
-      latitude ?? null,
-      longitude ?? null,
-      ward ?? null,
-      assigned_reader_uuid ?? null,
-      uuid,
-    ]
-  );
+  const body = req.body || {};
+  // Only touch columns the client actually sent, so an explicit null clears the
+  // field instead of COALESCE silently keeping the old value.
+  const columns = [
+    "meter_number",
+    "meter_installed_at",
+    "meter_status",
+    "latitude",
+    "longitude",
+    "ward",
+    "assigned_reader_uuid",
+  ] as const;
+  const sets: string[] = [];
+  const params: any[] = [];
+  for (const col of columns) {
+    if (!Object.prototype.hasOwnProperty.call(body, col)) continue;
+    const value = body[col];
+    sets.push(`${col} = ?`);
+    params.push(value === "" ? null : value);
+  }
+  if (!sets.length) return res.status(400).json({ message: "Nothing to update" });
+  params.push(uuid);
+  await dbq(`UPDATE users SET ${sets.join(", ")} WHERE uuid = ?`, params);
   res.json({ message: "Meter updated" });
 }
 
@@ -589,7 +639,14 @@ export async function extraConnection(req: AuthRequest, res: Response) {
       message: "Provide a distinct 10-digit contact number for this extra connection",
     });
   }
-  const hash = parent[0].password;
+  const taken = await dbq<any[]>("SELECT uuid FROM users WHERE mobile_number = ? LIMIT 1", [siteMobile]);
+  if (taken[0]) {
+    return res.status(409).json({ message: "That mobile number already belongs to another account" });
+  }
+  // Never share the parent's credentials: issue a random temporary password and
+  // let the consumer reset it through the normal flow.
+  const tempPassword = crypto.randomBytes(18).toString("base64url");
+  const hash = await bcrypt.hash(tempPassword, 10);
   const uuid = uuidv4();
   await new Promise<void>((resolve, reject) => {
     User.create(
@@ -608,7 +665,7 @@ export async function extraConnection(req: AuthRequest, res: Response) {
     ward || parent[0].ward || null,
     uuid,
   ]);
-  res.status(201).json({ message: "Extra connection created", uuid });
+  res.status(201).json({ message: "Extra connection created", uuid, temporary_password: tempPassword });
 }
 
 export async function myConnections(req: AuthRequest, res: Response) {
@@ -664,15 +721,19 @@ export async function runDueReminders() {
   const daysBefore = Number((await settingGet("reminder_days_before")) || 3);
   const today = new Date();
   const unpaid = await dbq<any[]>(
-    `SELECT wc.uuid, wc.month, wc.year, wc.amount, u.uuid AS user_uuid, u.mobile_number, u.full_name
+    `SELECT wc.uuid, wc.month, wc.year, wc.amount, wc.last_reminder_on,
+            u.uuid AS user_uuid, u.mobile_number, u.full_name
      FROM water_consumption wc JOIN users u ON u.uuid = wc.user_uuid
      WHERE wc.payment_status='UNPAID' AND wc.reading_status='APPROVED'`
   );
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const months = [
     "January","February","March","April","May","June","July","August","September","October","November","December",
   ];
   let sent = 0;
   for (const bill of unpaid) {
+    // The job runs several times a day; only remind each bill once per calendar day.
+    if (bill.last_reminder_on && String(bill.last_reminder_on).slice(0, 10) === todayKey) continue;
     const mi = months.indexOf(bill.month);
     if (mi < 0) continue;
     const due = new Date(Number(bill.year), mi, dueDay);
@@ -692,6 +753,7 @@ export async function runDueReminders() {
         }),
         "REMINDER"
       );
+      await dbq("UPDATE water_consumption SET last_reminder_on = CURDATE() WHERE uuid = ?", [bill.uuid]);
     }
   }
   return { message: "Reminders processed", sent };

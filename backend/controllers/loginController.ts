@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import pool from '../db/connection/connection';
 import { verifyTotp } from '../utils/totp';
+import { settingGet } from '../utils/dbq';
 
 
 function getPaymentStatusForUser(user_uuid, callback) {
@@ -77,6 +78,19 @@ export const loginUser = async (req: AuthRequest, res: Response) => {
           requires2fa: true,
           pendingToken,
         });
+      }
+
+      // `admin_2fa_required` is an org-wide switch: when set, staff without
+      // enrolment cannot sign in until they enable an authenticator.
+      const role = String(user.role || "").toUpperCase();
+      if (role === "ADMIN" || role === "SUPER_ADMIN") {
+        const required = await settingGet("admin_2fa_required");
+        if (required === "1") {
+          return res.status(403).json({
+            message: "Two-factor authentication is required for staff. Ask a Super Admin to help you enrol.",
+            requires2faSetup: true,
+          });
+        }
       }
 
       // Generate access token (configurable, default 24h)
@@ -156,6 +170,14 @@ export const verifyLogin2fa = async (req: AuthRequest, res: Response) => {
     pool.query("SELECT * FROM users WHERE uuid = ?", [decoded.uuid], async (err, results: any[]) => {
       if (err || !results?.[0]) return res.status(400).json({ message: "User not found." });
       const user = results[0];
+      // Re-check status and enrolment: the pending token is 5 minutes old and the
+      // account may have been revoked or 2FA turned off in the meantime.
+      if (user.status == 'REVOKE' || user.status == 'DISCONNECTED' || user.status == 'DELETED') {
+        return res.status(400).json({ message: "This account can no longer sign in." });
+      }
+      if (Number(user.totp_enabled) !== 1) {
+        return res.status(400).json({ message: "Two-factor authentication is no longer enabled. Sign in again." });
+      }
       if (!verifyTotp(user.totp_secret, String(code))) {
         return res.status(400).json({ message: "Invalid authenticator code." });
       }

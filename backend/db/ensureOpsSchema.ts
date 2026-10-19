@@ -55,6 +55,7 @@ export async function ensureOpsSchema(): Promise<void> {
     "reading_status VARCHAR(24) NOT NULL DEFAULT 'APPROVED'",
     "submitted_by VARCHAR(36) NULL",
     "credit_note TEXT NULL",
+    "last_reminder_on DATE NULL",
   ];
   for (const col of consCols) {
     await run(`ALTER TABLE water_consumption ADD COLUMN ${col}`);

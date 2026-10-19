@@ -22,6 +22,7 @@ import authenticate from "../middleware/authenticate";
 import * as opsController from "../controllers/opsController";
 import requireAdmin from "../middleware/requireAdmin";
 import { requireOps } from "../middleware/requireOps";
+import { wrapAsync } from "../middleware/wrapAsync";
 import { auditAdmin } from "../middleware/auditAdmin";
 import type { AuthRequest } from "../types/express";
 
@@ -98,7 +99,7 @@ router.post('/refresh-token', tokenController.refreshToken);
 router.get('/settings/rate', settingsController.getRatePerLiter);
 // Get branding settings (public - for app name, footer, bills)
 router.get('/settings/branding', settingsController.getBrandingSettings);
-router.post('/public/connection-applications', opsController.createApplication);
+router.post('/public/connection-applications', wrapAsync(opsController.createApplication));
 
 // Middleware for protected routes
 router.use(authenticate);
@@ -121,16 +122,16 @@ router.post('/payment/notify-completed', notificationController.createPaymentNot
 router.get('/payment/qr/:consumption_uuid', paymentController.generatePaymentQR);
 router.get('/payment/total', paymentController.getTotalPaid);
 router.get('/notifications', notificationController.getMyNotifications);
-router.put('/notifications/:uuid/read', opsController.markMyNotificationRead);
-router.put('/notifications/mark-all-read', opsController.markAllMyNotificationsRead);
-router.post('/tickets', opsController.createTicket);
-router.get('/tickets', opsController.listTickets);
-router.get('/connections/mine', opsController.myConnections);
-router.post('/connection-applications', opsController.createApplication);
+router.put('/notifications/:uuid/read', wrapAsync(opsController.markMyNotificationRead));
+router.put('/notifications/mark-all-read', wrapAsync(opsController.markAllMyNotificationsRead));
+router.post('/tickets', wrapAsync(opsController.createTicket));
+router.get('/tickets', wrapAsync(opsController.listTickets));
+router.get('/connections/mine', wrapAsync(opsController.myConnections));
+router.post('/connection-applications', wrapAsync(opsController.createApplication));
 
-router.post('/security/2fa/begin', opsController.beginTotp);
-router.post('/security/2fa/confirm', opsController.confirmTotp);
-router.post('/security/2fa/disable', opsController.disableTotp);
+router.post('/security/2fa/begin', wrapAsync(opsController.beginTotp));
+router.post('/security/2fa/confirm', wrapAsync(opsController.confirmTotp));
+router.post('/security/2fa/disable', wrapAsync(opsController.disableTotp));
 
 // User profile by UUID: admin can see any user; regular user can only see self
 router.get('/user/:uuid', requireAdminOrSelf, userController.getUserByUuid);
@@ -202,32 +203,32 @@ router.get('/admin/analytics/collection-efficiency', requireAdmin, analyticsCont
 router.get('/admin/export/consumers', requireAdmin, exportController.exportConsumers);
 
 // Ops suite
-router.get('/admin/ops/settings', requireAdmin, opsController.getOpsSettings);
-router.put('/admin/ops/settings', requireAdmin, opsController.updateOpsSettings);
-router.post('/admin/ops/bill-run', requireAdmin, opsController.runBillCycle);
-router.post('/admin/ops/late-fees', requireAdmin, opsController.applyLateFees);
-router.post('/admin/ops/credit-note', requireAdmin, opsController.creditNote);
-router.post('/admin/ops/deposit', requireAdmin, opsController.adjustDeposit);
-router.post('/admin/ops/pay-from-deposit', requireAdmin, opsController.payFromDeposit);
-router.get('/admin/ops/print-pack', requireAdmin, opsController.printPack);
-router.get('/admin/ops/board-pack', requireAdmin, opsController.boardPack);
-router.post('/admin/ops/reminders', requireAdmin, opsController.sendReminders);
-router.post('/admin/ops/extra-connection', requireAdmin, opsController.extraConnection);
-router.get('/admin/ops/applications', requireAdmin, opsController.listApplications);
-router.post('/admin/ops/applications/:uuid/decide', requireAdmin, opsController.decideApplication);
-router.post('/admin/ops/connection-status', requireAdmin, opsController.setConnectionStatus);
-router.patch('/admin/ops/tickets/:uuid', requireAdmin, opsController.updateTicket);
+router.get('/admin/ops/settings', requireAdmin, wrapAsync(opsController.getOpsSettings));
+router.put('/admin/ops/settings', requireAdmin, wrapAsync(opsController.updateOpsSettings));
+router.post('/admin/ops/bill-run', requireAdmin, wrapAsync(opsController.runBillCycle));
+router.post('/admin/ops/late-fees', requireAdmin, wrapAsync(opsController.applyLateFees));
+router.post('/admin/ops/credit-note', requireAdmin, wrapAsync(opsController.creditNote));
+router.post('/admin/ops/deposit', requireAdmin, wrapAsync(opsController.adjustDeposit));
+router.post('/admin/ops/pay-from-deposit', requireAdmin, wrapAsync(opsController.payFromDeposit));
+router.get('/admin/ops/print-pack', requireAdmin, wrapAsync(opsController.printPack));
+router.get('/admin/ops/board-pack', requireAdmin, wrapAsync(opsController.boardPack));
+router.post('/admin/ops/reminders', requireAdmin, wrapAsync(opsController.sendReminders));
+router.post('/admin/ops/extra-connection', requireAdmin, wrapAsync(opsController.extraConnection));
+router.get('/admin/ops/applications', requireAdmin, wrapAsync(opsController.listApplications));
+router.post('/admin/ops/applications/:uuid/decide', requireAdmin, wrapAsync(opsController.decideApplication));
+router.post('/admin/ops/connection-status', requireAdmin, wrapAsync(opsController.setConnectionStatus));
+router.patch('/admin/ops/tickets/:uuid', requireAdmin, wrapAsync(opsController.updateTicket));
 
-router.get('/ops/leaks', requireOps, opsController.leakAlerts);
-router.post('/ops/readings', requireOps, opsController.submitReading);
-router.get('/ops/readings/pending', requireAdmin, opsController.pendingReadings);
-router.post('/ops/readings/:uuid/decide', requireAdmin, opsController.decideReading);
-router.get('/ops/routes', requireOps, opsController.listRoutes);
-router.post('/ops/routes', requireAdmin, opsController.saveRoute);
-router.get('/ops/my-route', requireOps, opsController.myRoute);
-router.get('/ops/meters', requireOps, opsController.meterMaster);
-router.put('/ops/meters/:uuid', requireAdmin, opsController.updateMeter);
-router.get('/ops/map', requireOps, opsController.mapPoints);
+router.get('/ops/leaks', requireOps, wrapAsync(opsController.leakAlerts));
+router.post('/ops/readings', requireOps, wrapAsync(opsController.submitReading));
+router.get('/ops/readings/pending', requireAdmin, wrapAsync(opsController.pendingReadings));
+router.post('/ops/readings/:uuid/decide', requireAdmin, wrapAsync(opsController.decideReading));
+router.get('/ops/routes', requireOps, wrapAsync(opsController.listRoutes));
+router.post('/ops/routes', requireAdmin, wrapAsync(opsController.saveRoute));
+router.get('/ops/my-route', requireOps, wrapAsync(opsController.myRoute));
+router.get('/ops/meters', requireOps, wrapAsync(opsController.meterMaster));
+router.put('/ops/meters/:uuid', requireAdmin, wrapAsync(opsController.updateMeter));
+router.get('/ops/map', requireOps, wrapAsync(opsController.mapPoints));
 
 export default router;
 
